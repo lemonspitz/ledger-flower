@@ -1,0 +1,7 @@
+<?xml version='1.0' encoding='utf-8'?>
+<resources>
+    <string name="app_name">Ledgerleaf</string>
+    <string name="title_activity_main">Ledgerleaf</string>
+    <string name="package_name">app.ledgerleaf.budget</string>
+    <string name="custom_url_scheme">app.ledgerleaf.budget</string>
+</resources>
