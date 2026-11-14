@@ -1,0 +1,6 @@
+{
+  "appId": "app.ledgerleaf.budget",
+  "appName": "Ledgerleaf",
+  "webDir": "dist",
+  "android": { "backgroundColor": "#f6f6f3" }
+}
