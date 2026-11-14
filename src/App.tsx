@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState, useSyncExternalStore } from 'react';
+import { useCallback, useEffect, useRef, useState, useSyncExternalStore } from 'react';
 import QRCode from 'qrcode';
 import { Capacitor } from '@capacitor/core';
 import { Directory, Encoding, Filesystem } from '@capacitor/filesystem';
@@ -15,6 +15,10 @@ const NAV: [string, string, string][] = [
   ['overview', 'Overview', 'home'], ['transactions', 'Transactions', 'list'], ['budgets', 'Budgets', 'target'],
   ['insights', 'Insights', 'chart'], ['goals', 'Goals', 'flag'], ['accounts', 'Accounts', 'wallet'], ['settings', 'Settings', 'gear'],
 ];
+declare const __APP_VERSION__: string;
+const APP_VERSION = __APP_VERSION__;
+const AUTHOR = 'lemonspitz';
+const AUTHOR_URL = 'https://github.com/lemonspitz';
 const CURRENCIES = ['USD', 'EUR', 'GBP', 'JPY', 'CAD', 'AUD', 'CHF', 'CNY', 'INR', 'BRL', 'MXN', 'SEK', 'NOK', 'DKK', 'PLN', 'ZAR', 'NGN', 'KES', 'AED', 'SAR', 'TRY', 'KRW', 'SGD', 'HKD', 'NZD', 'PHP', 'IDR', 'THB', 'VND', 'EGP', 'PKR', 'BDT'];
 
 function useSync() { return useSyncExternalStore(sync.subscribe, sync.getStatus); }
@@ -66,18 +70,20 @@ export default function App() {
 
   const go = useCallback((v: string, f?: Partial<TxFilter>) => { if (f) setFilter({ ...NO_FILTER, ...f }); setView(v); window.scrollTo(0, 0); document.querySelector('main')?.scrollTo(0, 0); }, []);
   const props: ViewProps = { m, month, setMonth, open: setDialog, go };
-  const mobileMore = ['goals', 'accounts', 'settings', 'more'].includes(view);
+  const mobileMore = ['goals', 'accounts', 'settings'].includes(view);
+  const [sheet, setSheet] = useState(false);
 
   return (
     <div className="app">
       <aside className="side">
-        <div className="brand"><span className="logo">🌿</span>Ledgerleaf</div>
+        <div className="brand"><img className="logo" src="./icon.svg" alt="" width={26} height={26} />Ledgerleaf</div>
         <nav>{NAV.map(([id, label, icon]) => <button key={id} className={view === id ? 'on' : ''} onClick={() => go(id)}><Icon name={icon} />{label}</button>)}</nav>
         <button className="btn primary add" onClick={() => setDialog({ k: 'tx' })}><Icon name="plus" size={16} />Add transaction</button>
         <SyncBadge onClick={() => go('settings')} />
+        <p className="credit side-credit">Made by <a href={AUTHOR_URL} target="_blank" rel="noreferrer">{AUTHOR}</a></p>
       </aside>
       <main>
-        <div className="mobile-top"><div className="brand"><span className="logo">🌿</span>Ledgerleaf</div><SyncBadge onClick={() => go('settings')} /></div>
+        <div className="mobile-top"><div className="brand"><img className="logo" src="./icon.svg" alt="" width={26} height={26} />Ledgerleaf</div><SyncBadge onClick={() => go('settings')} /></div>
         {view === 'overview' && <Dashboard {...props} />}
         {view === 'transactions' && <Transactions {...props} filter={filter} setFilter={setFilter} />}
         {view === 'budgets' && <Budgets {...props} />}
@@ -85,20 +91,41 @@ export default function App() {
         {view === 'goals' && <Goals {...props} />}
         {view === 'accounts' && <Accounts {...props} />}
         {view === 'settings' && <SettingsView m={m} prefs={prefs} setPrefs={setPrefs} open={setDialog} />}
-        {view === 'more' && (
-          <div className="page">
-            <header className="page-head"><h1>More</h1></header>
-            <div className="more-list">{NAV.slice(4).map(([id, label, icon]) => <button key={id} onClick={() => go(id)}><Icon name={icon} />{label}<Icon name="right" size={16} /></button>)}</div>
-          </div>
-        )}
       </main>
       <nav className="tabs">
         {NAV.slice(0, 2).map(([id, label, icon]) => <button key={id} className={view === id ? 'on' : ''} onClick={() => go(id)}><Icon name={icon} />{label}</button>)}
         <button className="fab" onClick={() => setDialog({ k: 'tx' })} aria-label="Add transaction"><Icon name="plus" size={26} /></button>
         {NAV.slice(2, 4).map(([id, label, icon]) => <button key={id} className={view === id ? 'on' : ''} onClick={() => go(id)}><Icon name={icon} />{label}</button>)}
-        <button className={mobileMore ? 'on' : ''} onClick={() => go('more')}><Icon name="more" />More</button>
+        <button className={mobileMore || sheet ? 'on' : ''} onClick={() => setSheet(!sheet)} aria-expanded={sheet} aria-haspopup="menu"><Icon name="more" />More</button>
       </nav>
+      {sheet && <MoreSheet view={view} onPick={(id) => { setSheet(false); go(id); }} onClose={() => setSheet(false)} />}
       {dialog && <Dialogs d={dialog} m={m} close={() => setDialog(null)} />}
+    </div>
+  );
+}
+
+function MoreSheet({ view, onPick, onClose }: { view: string; onPick: (id: string) => void; onClose: () => void }) {
+  const [closing, setClosing] = useState(false);
+  const [drag, setDrag] = useState(0);
+  const startY = useRef<number | null>(null);
+  const close = useCallback(() => { setClosing(true); setTimeout(onClose, 180); }, [onClose]);
+  useEffect(() => {
+    const k = (e: KeyboardEvent) => e.key === 'Escape' && close();
+    window.addEventListener('keydown', k);
+    return () => window.removeEventListener('keydown', k);
+  }, [close]);
+  return (
+    <div className={`sheet-scrim${closing ? ' closing' : ''}`} onClick={close}>
+      <div className="sheet" role="menu" aria-label="More" onClick={(e) => e.stopPropagation()} style={drag ? { transform: `translateY(${drag}px)`, transition: 'none' } : undefined}
+        onTouchStart={(e) => { startY.current = e.touches[0].clientY; }}
+        onTouchMove={(e) => { if (startY.current !== null) setDrag(Math.max(0, e.touches[0].clientY - startY.current)); }}
+        onTouchEnd={() => { if (drag > 70) close(); setDrag(0); startY.current = null; }}>
+        <div className="sheet-handle" />
+        {NAV.slice(4).map(([id, label, icon]) => (
+          <button key={id} role="menuitem" className={view === id ? 'on' : ''} onClick={() => onPick(id)}><span className="sheet-ic"><Icon name={icon} /></span>{label}<Icon name="right" size={16} /></button>
+        ))}
+        <p className="credit">Made by <a href={AUTHOR_URL} target="_blank" rel="noreferrer">{AUTHOR}</a></p>
+      </div>
     </div>
   );
 }
@@ -147,7 +174,16 @@ function SettingsView({ m, prefs, setPrefs, open }: { m: Model; prefs: LocalPref
           </div>
         )}
       </Card>
-      <p className="foot">Ledgerleaf 1.1.1 · your data stays on your devices</p>
+      <Card title="About">
+        <div className="about">
+          <img src="./icon.svg" alt="" width={56} height={56} />
+          <div>
+            <b>Ledgerleaf {APP_VERSION}</b>
+            <p>Created by <a href={AUTHOR_URL} target="_blank" rel="noreferrer">{AUTHOR}</a></p>
+            <small className="muted">Your data stays on your devices · © {new Date().getFullYear()} {AUTHOR}</small>
+          </div>
+        </div>
+      </Card>
     </div>
   );
 }

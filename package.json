@@ -1,6 +1,6 @@
 {
   "name": "ledgerleaf",
-  "version": "1.1.1",
+  "version": "1.2.0",
   "description": "Personal budgeting with real-time encrypted sync",
   "main": "electron/main.cjs",
   "scripts": {
@@ -13,7 +13,10 @@
     "android": "npm run build && cap sync android && cd android && ./gradlew assembleDebug",
     "relay": "node server/relay.mjs"
   },
-  "author": "Ledgerleaf",
+  "author": {
+    "name": "lemonspitz",
+    "url": "https://github.com/lemonspitz"
+  },
   "devDependencies": {
     "@capacitor/android": "^8.6.2",
     "@capacitor/cli": "^8.6.2",
@@ -57,7 +60,8 @@
         "nsis",
         "portable"
       ],
-      "signAndEditExecutable": true
+      "signAndEditExecutable": true,
+      "icon": "build/icon.png"
     },
     "nsis": {
       "oneClick": true,
@@ -72,8 +76,11 @@
       ],
       "category": "public.app-category.finance",
       "identity": null,
-      "artifactName": "Ledgerleaf-${version}-mac-${arch}.zip"
+      "artifactName": "Ledgerleaf-${version}-mac-${arch}.zip",
+      "icon": "build/icon-mac.png"
     },
-    "publish": null
-  }
+    "publish": null,
+    "copyright": "Copyright \u00a9 2026 lemonspitz"
+  },
+  "homepage": "https://github.com/lemonspitz/ledger-leaf"
 }
