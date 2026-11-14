@@ -17,6 +17,8 @@ const P: Record<string, string> = {
   search: 'M11 18a7 7 0 100-14 7 7 0 000 14zM21 21l-5-5',
   warn: 'M12 3l10 18H2L12 3zM12 10v5M12 18h.01',
   check: 'M4 12l5 5L20 6',
+  camera: 'M4 8h3l2-3h6l2 3h3v11H4zM12 16.5a3.5 3.5 0 100-7 3.5 3.5 0 000 7z',
+  image: 'M4 5h16v14H4zM4 15l4.5-4.5 4 4 3-3L20 16M9 9.5h.01',
   up: 'M12 19V5M5 12l7-7 7 7', down: 'M12 5v14M5 12l7 7 7-7',
 };
 export function Icon({ name, size = 20 }: { name: string; size?: number }) {

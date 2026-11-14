@@ -287,3 +287,32 @@ button.tx:hover { background: var(--wash); }
   .scrim { align-items: end; padding: 0; }
   .modal { width: 100%; border-radius: 18px 18px 0 0; max-height: 92dvh; padding-bottom: env(safe-area-inset-bottom); }
 }
+
+/* ── receipt scan & sub-categories ── */
+.scan { display: flex; flex-direction: column; gap: 8px; }
+.btn-row.tight { margin-top: 0; gap: 8px; }
+.scan-busy { display: flex; flex-direction: column; gap: 6px; font-size: 13.5px; color: var(--ink-2); }
+.scan-note { display: flex; gap: 6px; font-size: 13px; padding: 8px 10px; border-radius: 10px; background: var(--wash); color: var(--ink-2); }
+.scan-note svg { flex: none; margin-top: 2px; }
+.scan-note.ok svg { color: var(--good-ink); } .scan-note.bad svg { color: var(--crit-ink); }
+.subs { display: flex; flex-direction: column; gap: 6px; padding: 10px 12px; border-radius: 12px; background: var(--wash); }
+.subs-label { font-size: 12.5px; color: var(--ink-2); font-weight: 550; }
+.chips.small { gap: 6px; }
+.chips.small .chip { padding: 4px 10px; font-size: 13px; }
+.chip.add { border-style: dashed; color: var(--ink-2); background: none; }
+.chip-in { display: inline-flex; gap: 6px; align-items: center; }
+.chip-in input { width: 130px; padding: 4px 9px; font-size: 13px; border-radius: 99px; }
+.items { display: flex; flex-direction: column; gap: 8px; align-items: flex-start; }
+.check { display: flex; align-items: center; gap: 8px; font-weight: 550; flex-wrap: wrap; }
+.check input { width: auto; accent-color: var(--accent); }
+.check small { font-weight: 400; color: var(--ink-3); }
+.item-row { display: grid; grid-template-columns: minmax(0, 1.4fr) minmax(0, 1fr) 84px 34px; gap: 6px; width: 100%; align-items: center; }
+.item-row input, .item-row select { padding: 7px 9px; font-size: 13.5px; }
+.item-row .item-amt { text-align: right; font-variant-numeric: tabular-nums; }
+textarea.plain { font-family: inherit; font-size: inherit; }
+.mini-select { width: auto; padding: 5px 8px; font-size: 13px; max-width: 150px; }
+.hint.pad { margin-top: 12px; }
+@media (max-width: 860px) {
+  .item-row { grid-template-columns: minmax(0, 1fr) 84px 34px; }
+  .item-row select { grid-column: 1 / 2; grid-row: 2; }
+}

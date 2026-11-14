@@ -7,9 +7,9 @@ export const COLLS: Coll[] = ['accounts', 'categories', 'tx', 'budgets', 'goals'
 
 export interface Base { id: string; u: number; del?: 1 }
 export interface Account extends Base { name: string; type: 'cash' | 'bank' | 'card' | 'savings'; opening: number }
-export interface Category extends Base { name: string; kind: 'expense' | 'income'; icon: string }
+export interface Category extends Base { name: string; kind: 'expense' | 'income'; icon: string; subs?: string[] }
 export type TxType = 'expense' | 'income' | 'transfer';
-export interface Tx extends Base { date: string; amount: number; type: TxType; acc: string; toAcc?: string; cat?: string; note: string; rid?: string }
+export interface Tx extends Base { date: string; amount: number; type: TxType; acc: string; toAcc?: string; cat?: string; sub?: string; note: string; rid?: string }
 export interface Budget extends Base { limit: number } // id === category id
 export interface Goal extends Base { name: string; target: number; saved: number; due?: string; icon: string }
 export interface Recurring extends Base { name: string; amount: number; type: 'expense' | 'income'; acc: string; cat: string; freq: 'weekly' | 'monthly' | 'yearly'; next: string }
@@ -23,12 +23,17 @@ export interface Data {
 export type Wire = Base & { c: Coll } & Record<string, unknown>;
 
 const KEY = 'll.data.v1';
-const DEFAULT_CATS: [string, string, 'expense' | 'income', string][] = [
-  ['cat_groceries', 'Groceries', 'expense', '🛒'], ['cat_dining', 'Dining out', 'expense', '🍽️'],
-  ['cat_housing', 'Housing', 'expense', '🏠'], ['cat_transport', 'Transport', 'expense', '🚌'],
-  ['cat_utilities', 'Utilities', 'expense', '💡'], ['cat_health', 'Health', 'expense', '💊'],
-  ['cat_fun', 'Entertainment', 'expense', '🎬'], ['cat_shopping', 'Shopping', 'expense', '🛍️'],
-  ['cat_subs', 'Subscriptions', 'expense', '🔁'], ['cat_travel', 'Travel', 'expense', '✈️'],
+const DEFAULT_CATS: [string, string, 'expense' | 'income', string, string[]?][] = [
+  ['cat_groceries', 'Groceries', 'expense', '🛒', ['Vegetables', 'Fruit', 'Meat & fish', 'Dairy & eggs', 'Bakery', 'Pantry', 'Snacks', 'Drinks', 'Household']],
+  ['cat_dining', 'Dining out', 'expense', '🍽️', ['Restaurants', 'Coffee', 'Fast food', 'Delivery', 'Bars']],
+  ['cat_housing', 'Housing', 'expense', '🏠', ['Rent', 'Mortgage', 'Repairs', 'Furniture']],
+  ['cat_transport', 'Transport', 'expense', '🚌', ['Fuel', 'Public transit', 'Taxi & ride share', 'Parking', 'Maintenance']],
+  ['cat_utilities', 'Utilities', 'expense', '💡', ['Electricity', 'Water', 'Gas', 'Internet', 'Phone']],
+  ['cat_health', 'Health', 'expense', '💊', ['Pharmacy', 'Doctor', 'Dental', 'Fitness']],
+  ['cat_fun', 'Entertainment', 'expense', '🎬', ['Movies', 'Games', 'Events', 'Hobbies']],
+  ['cat_shopping', 'Shopping', 'expense', '🛍️', ['Clothing', 'Electronics', 'Home', 'Gifts']],
+  ['cat_subs', 'Subscriptions', 'expense', '🔁', ['Streaming', 'Music', 'Software', 'Memberships']],
+  ['cat_travel', 'Travel', 'expense', '✈️', ['Flights', 'Lodging', 'Activities']],
   ['cat_other', 'Other', 'expense', '📦'],
   ['cat_salary', 'Salary', 'income', '💼'], ['cat_side', 'Side income', 'income', '🧰'],
   ['cat_gift', 'Gifts & refunds', 'income', '🎁'],
@@ -37,7 +42,7 @@ const DEFAULT_CATS: [string, string, 'expense' | 'income', string][] = [
 function fresh(): Data {
   const d: Data = { accounts: {}, categories: {}, tx: {}, budgets: {}, goals: {}, recurring: {}, settings: {} };
   // Fixed ids + u:0 so the defaults on two devices merge instead of duplicating.
-  for (const [id, name, kind, icon] of DEFAULT_CATS) d.categories[id] = { id, u: 0, name, kind, icon };
+  for (const [id, name, kind, icon, subs] of DEFAULT_CATS) d.categories[id] = { id, u: 0, name, kind, icon, subs };
   d.accounts.acc_main = { id: 'acc_main', u: 0, name: 'Main account', type: 'bank', opening: 0 };
   d.settings.settings = { id: 'settings', u: 0, currency: 'USD' };
   return d;
@@ -46,7 +51,12 @@ function fresh(): Data {
 function load(): Data {
   try {
     const raw = localStorage.getItem(KEY);
-    if (raw) return { ...fresh(), ...JSON.parse(raw) };
+    if (raw) {
+      const d: Data = { ...fresh(), ...JSON.parse(raw) };
+      // Data saved before sub-categories existed: give untouched default categories their starter list.
+      for (const [id, , , , subs] of DEFAULT_CATS) { const c = d.categories[id]; if (c && !c.del && !c.subs && subs) c.subs = subs; }
+      return d;
+    }
   } catch { /* corrupt or unavailable storage: start clean */ }
   return fresh();
 }
@@ -99,6 +109,8 @@ export function mergeRemote(recs: Wire[]) {
     if (!COLLS.includes(c) || typeof rec.id !== 'string' || typeof rec.u !== 'number') continue;
     const cur = (next ?? data)[c][rec.id];
     if (cur && cur.u >= rec.u) continue;
+    // A device on an older version may send a default category without its sub-category list.
+    if (c === 'categories' && rec.u === 0 && !rec.subs) { const d = DEFAULT_CATS.find((x) => x[0] === rec.id); if (d?.[4]) rec.subs = d[4]; }
     next ??= { ...data };
     if (next[c] === data[c]) (next as Record<Coll, unknown>)[c] = { ...data[c] };
     (next[c] as Record<string, Base>)[rec.id] = rec as Base;

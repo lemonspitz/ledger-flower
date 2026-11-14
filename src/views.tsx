@@ -24,7 +24,7 @@ const tone = (spent: number, limit: number, paceShare = 1) => (spent > limit ? '
 function TxRow({ t, m, onClick }: { t: Tx; m: Model; onClick: () => void }) {
   const c = m.cat(t.cat);
   const title = t.note || (t.type === 'transfer' ? 'Transfer' : c?.name ?? 'Uncategorized');
-  const sub = t.type === 'transfer' ? `${m.acc(t.acc)?.name ?? '—'} → ${m.acc(t.toAcc)?.name ?? '—'}` : `${c?.name ?? 'Uncategorized'} · ${m.acc(t.acc)?.name ?? '—'}`;
+  const sub = t.type === 'transfer' ? `${m.acc(t.acc)?.name ?? '—'} → ${m.acc(t.toAcc)?.name ?? '—'}` : `${c?.name ?? 'Uncategorized'}${t.sub ? ` › ${t.sub}` : ''} · ${m.acc(t.acc)?.name ?? '—'}`;
   return (
     <button className="tx" onClick={onClick}>
       <span className="tx-ic">{t.type === 'transfer' ? '⇄' : c?.icon ?? '📦'}</span>
@@ -157,7 +157,7 @@ export function Transactions({ m, open, filter, setFilter }: ViewProps & { filte
     return m.txs.filter((t) =>
       (filter.type === 'all' || t.type === filter.type) && (!filter.cat || t.cat === filter.cat) &&
       (!filter.acc || t.acc === filter.acc || t.toAcc === filter.acc) && (!filter.month || t.date.startsWith(filter.month)) &&
-      (!q || t.note.toLowerCase().includes(q) || (m.cat(t.cat)?.name.toLowerCase().includes(q) ?? false)));
+      (!q || t.note.toLowerCase().includes(q) || (t.sub?.toLowerCase().includes(q) ?? false) || (m.cat(t.cat)?.name.toLowerCase().includes(q) ?? false)));
   }, [m, filter]);
   const inc = list.reduce((a, t) => a + (t.type === 'income' ? t.amount : 0), 0);
   const exp = list.reduce((a, t) => a + (t.type === 'expense' ? t.amount : 0), 0);
@@ -170,7 +170,7 @@ export function Transactions({ m, open, filter, setFilter }: ViewProps & { filte
     <div className="page">
       <header className="page-head"><h1>Transactions</h1><button className="btn primary desk" onClick={() => open({ k: 'tx' })}><Icon name="plus" size={16} />Add</button></header>
       <div className="filters">
-        <label className="search"><Icon name="search" size={16} /><input placeholder="Search notes and categories" value={filter.q} onChange={(e) => set({ q: e.target.value })} /></label>
+        <label className="search"><Icon name="search" size={16} /><input placeholder="Search notes, categories and sub-categories" value={filter.q} onChange={(e) => set({ q: e.target.value })} /></label>
         <select value={filter.month} onChange={(e) => set({ month: e.target.value })} aria-label="Month"><option value="">All time</option>{monthOpts.map((x) => <option key={x} value={x}>{monthName(x)}</option>)}</select>
         <select value={filter.type} onChange={(e) => set({ type: e.target.value as TxFilter['type'] })} aria-label="Type"><option value="all">All types</option><option value="expense">Expenses</option><option value="income">Income</option><option value="transfer">Transfers</option></select>
         <select value={filter.cat} onChange={(e) => set({ cat: e.target.value })} aria-label="Category"><option value="">All categories</option>{m.categories.map((c) => <option key={c.id} value={c.id}>{c.icon} {c.name}</option>)}</select>
@@ -295,6 +295,7 @@ export function Goals({ m, open }: ViewProps) {
 // ───────────────────────── Insights ─────────────────────────
 export function Insights({ m, go }: ViewProps) {
   const [range, setRange] = useState<'3' | '6' | '12'>('6');
+  const [subCat, setSubCat] = useState('');
   const ms = monthsBack(Number(range));
   const labels = ms.map((x) => monthName(x, 'short'));
   const sums = ms.map((x) => m.month(x));
@@ -309,6 +310,12 @@ export function Insights({ m, go }: ViewProps) {
   period.forEach((t) => { const [y, mo, d] = t.date.split('-').map(Number); wd[(new Date(y, mo - 1, d).getDay() + 6) % 7] += t.amount; });
   const weeks = Math.max(1, Math.round((Date.now() - new Date(start + 'T00:00').getTime()) / 6048e5));
   const biggest = [...period].sort((a, b) => b.amount - a.amount).slice(0, 6);
+  const withSubs = ranked.filter(([id]) => (m.cat(id)?.subs?.length ?? 0) > 0 || period.some((t) => t.cat === id && t.sub));
+  const subId = withSubs.some(([id]) => id === subCat) ? subCat : withSubs[0]?.[0] ?? '';
+  const subTotals = new Map<string, number>();
+  period.forEach((t) => { if ((t.cat || 'cat_other') === subId) subTotals.set(t.sub ?? '', (subTotals.get(t.sub ?? '') ?? 0) + t.amount); });
+  const subRows = [...subTotals].sort((a, b) => b[1] - a[1]);
+  const subSum = subRows.reduce((a, r) => a + r[1], 0);
 
   const notes: ReactNode[] = [];
   const cm = curMonth(), now = m.month(cm);
@@ -349,6 +356,13 @@ export function Insights({ m, go }: ViewProps) {
         <Card title="Spending by category" sub={`Total over ${range} months`}>
           <RankBars fmt={m.fmt0} onPick={(id) => go('transactions', { cat: id })} rows={ranked.slice(0, 8).map(([id, v]) => ({ id, value: v, note: `${pct(v, exp)}%`, label: <><span className="em">{m.cat(id)?.icon ?? '📦'}</span>{m.cat(id)?.name ?? 'Other'}</> }))} />
         </Card>
+        {subId && (
+          <Card title="Inside a category" sub="Spending split by sub-category" action={<select className="mini-select" value={subId} onChange={(e) => setSubCat(e.target.value)} aria-label="Category">{withSubs.map(([id]) => <option key={id} value={id}>{m.cat(id)?.name ?? 'Other'}</option>)}</select>}>
+            <RankBars fmt={m.fmt0} onPick={(id) => go('transactions', id ? { cat: subId, q: id } : { cat: subId })}
+              rows={subRows.map(([name, v]) => ({ id: name, value: v, note: `${pct(v, subSum)}%`, label: name || <span className="muted">No sub-category</span> }))} />
+            {subRows.length === 1 && !subRows[0][0] && <p className="hint pad">Pick a sub-category when adding {m.cat(subId)?.name.toLowerCase()} spending, or scan a receipt and save its items separately, to see the split here.</p>}
+          </Card>
+        )}
         <Card title="By day of the week" sub="Average spent per weekday">
           <ColumnChart labels={['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun']} fmt={m.fmt0} fmtAxis={m.fmtc} height={200} series={[{ name: 'Average spent', color: 'var(--series-1)', values: wd.map((v) => Math.round(v / weeks)) }]} />
         </Card>
