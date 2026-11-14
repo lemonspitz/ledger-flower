@@ -147,7 +147,7 @@ function SettingsView({ m, prefs, setPrefs, open }: { m: Model; prefs: LocalPref
           </div>
         )}
       </Card>
-      <p className="foot">Ledgerleaf 1.1 · your data stays on your devices</p>
+      <p className="foot">Ledgerleaf 1.1.1 · your data stays on your devices</p>
     </div>
   );
 }

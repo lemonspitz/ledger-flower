@@ -63,8 +63,8 @@ npm run dist:mac
 npm run android
 ```
 
-- Windows build output: `release/Ledgerleaf Setup 1.1.0.exe` (installer; shipped here renamed to `Ledgerleaf-1.1.0-windows-setup.exe`) and a portable `.exe`. Building on Linux needs Wine.
-- macOS output: `release/Ledgerleaf-1.1.0-mac-arm64.zip` (Apple silicon) and `-x64.zip` (Intel).
+- Windows build output: `release/Ledgerleaf Setup 1.1.1.exe` (installer; shipped here renamed to `Ledgerleaf-1.1.1-windows-setup.exe`) and a portable `.exe`. Building on Linux needs Wine.
+- macOS output: `release/Ledgerleaf-1.1.1-mac-arm64.zip` (Apple silicon) and `-x64.zip` (Intel).
 - Android output: `android/app/build/outputs/apk/debug/app-debug.apk`. Needs the Android SDK (`ANDROID_HOME`) and JDK 21.
 
 The desktop apps are unsigned. Windows SmartScreen will ask for confirmation

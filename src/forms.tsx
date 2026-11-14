@@ -90,7 +90,7 @@ function TxForm({ m, tx, preset, close }: { m: Model; tx?: Tx; preset?: Partial<
       setScan({ done: `Read ${r.merchant ? `“${r.merchant}”` : 'the receipt'}: total ${m.fmt(r.total)}${r.items.length ? `, ${r.items.length} item${r.items.length === 1 ? '' : 's'}` : ''}.${taxLine ? ` Items add up to ${m.fmt(sum)}, so ${m.fmt(gap)} is listed as tax & fees.` : r.items.length && Math.abs(gap) > 1 ? ` Items add up to ${m.fmt(sum)} — a line may have been missed or misread.` : ''} Please check before saving.` });
     } catch (e) {
       console.error('receipt scan', e);
-      setScan({ error: 'The receipt couldn’t be read. You can still type the details in.' });
+      setScan({ error: `The receipt couldn’t be read (${e instanceof Error ? e.message : String(e)}). You can still type the details in.` });
     }
   };
   const addSub = () => {

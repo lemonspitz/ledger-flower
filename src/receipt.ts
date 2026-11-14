@@ -146,14 +146,22 @@ async function prepare(file: Blob): Promise<HTMLCanvasElement> {
 export async function scanReceipt(file: Blob, cats: Category[], onProgress: (p: number) => void): Promise<Receipt> {
   const [{ createWorker }, canvas] = await Promise.all([import('tesseract.js'), prepare(file)]);
   const base = new URL('./ocr/', document.baseURI).href;
-  const worker = await createWorker('eng', 1, {
-    workerPath: base + 'worker.min.js', corePath: base, langPath: base, workerBlobURL: false, gzip: true,
+  // If the engine or language files fail to load, tesseract.js waits forever; give up with a clear error instead.
+  let timer: ReturnType<typeof setTimeout> | undefined;
+  const timeout = new Promise<never>((_, rej) => { timer = setTimeout(() => rej(new Error('the text reader didn’t start')), 45000); });
+  const starting = createWorker('eng', 1, {
+    workerPath: base + 'worker.min.js', corePath: base, langPath: base, workerBlobURL: false, gzip: false,
     logger: (m: { status: string; progress: number }) => { if (m.status === 'recognizing text') onProgress(m.progress); },
+    errorHandler: (e: unknown) => console.error('ocr worker', e),
   });
+  const worker = await Promise.race([starting, timeout]).finally(() => clearTimeout(timer));
   try {
     await worker.setParameters({ preserve_interword_spaces: '1', tessedit_pageseg_mode: '6' as never });
-    const { data } = await worker.recognize(canvas);
-    return parseReceipt(data.text, cats);
+    const first = parseReceipt((await worker.recognize(canvas)).data.text, cats);
+    if (first.total || first.items.length) return first;
+    // Photos with background or uneven columns sometimes read better in column mode.
+    await worker.setParameters({ tessedit_pageseg_mode: '4' as never });
+    return parseReceipt((await worker.recognize(canvas)).data.text, cats);
   } finally {
     await worker.terminate();
   }

@@ -1,6 +1,6 @@
 {
   "name": "ledgerleaf",
-  "version": "1.1.0",
+  "version": "1.1.1",
   "description": "Personal budgeting with real-time encrypted sync",
   "main": "electron/main.cjs",
   "scripts": {
