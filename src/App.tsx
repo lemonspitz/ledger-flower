@@ -9,6 +9,7 @@ import { Dialogs, type Dialog } from './forms';
 import { flushSave, getData, replaceAll, put, runRecurring, type Data } from './store';
 import { DEFAULT_RELAYS, loadPrefs, newSyncCode, normalizeCode, savePrefs, sync, type LocalPrefs } from './sync';
 import { Card, Field, Icon, Seg } from './ui';
+import { Backdrop, PlantArt, THEMES, THEME_IDS, type ThemeId } from './themes';
 import { Accounts, Budgets, Dashboard, Goals, Insights, NO_FILTER, Transactions, type TxFilter, type ViewProps } from './views';
 
 const NAV: [string, string, string][] = [
@@ -53,7 +54,12 @@ export default function App() {
   const [prefs, setPrefsState] = useState<LocalPrefs>(loadPrefs);
   const setPrefs = useCallback((p: LocalPrefs) => { savePrefs(p); setPrefsState(p); }, []);
 
-  useEffect(() => { document.documentElement.dataset.theme = prefs.theme === 'auto' ? '' : prefs.theme; }, [prefs.theme]);
+  const plant = (THEME_IDS.includes(prefs.plant as ThemeId) ? prefs.plant : 'monstera') as ThemeId;
+  useEffect(() => {
+    const r = document.documentElement;
+    if (prefs.theme === 'auto') delete r.dataset.theme; else r.dataset.theme = prefs.theme;
+    r.dataset.plant = plant;
+  }, [prefs.theme, plant]);
   useEffect(() => {
     if (prefs.code) void sync.start(prefs.code, prefs.relays); else sync.stop();
   }, [prefs.code, prefs.relays]);
@@ -106,6 +112,8 @@ export default function App() {
   };
 
   return (
+    <>
+    <Backdrop plant={plant} />
     <div className="app">
       <aside className="side">
         <div className="brand"><img className="logo" src="./icon.svg" alt="" width={26} height={26} />Ledgerleaf</div>
@@ -136,6 +144,7 @@ export default function App() {
         onPick={(id) => { setSheet(false); setPull(null); go(id); }} onClose={() => { setSheet(false); setPull(null); }} />}
       {dialog && <Dialogs d={dialog} m={m} close={() => setDialog(null)} />}
     </div>
+    </>
   );
 }
 
@@ -189,6 +198,24 @@ function SettingsView({ m, prefs, setPrefs, open }: { m: Model; prefs: LocalPref
             <Field label="Appearance" hint="Only on this device.">
               <Seg value={prefs.theme} onChange={(theme) => setPrefs({ ...prefs, theme })} options={[['auto', 'System'], ['light', 'Light'], ['dark', 'Dark']]} />
             </Field>
+          </div>
+          <div className="field">
+            <span>Plant theme</span>
+            <div className="themes" role="radiogroup" aria-label="Plant theme">
+              {THEMES.map((x) => (
+                <button key={x.id} type="button" role="radio" aria-checked={prefs.plant === x.id} className={`theme-opt${(prefs.plant || 'monstera') === x.id ? ' on' : ''}`} onClick={() => setPrefs({ ...prefs, plant: x.id })}
+                  style={{ ['--leaf1' as string]: x.light.leaf[0], ['--leaf2' as string]: x.light.leaf[1], ['--vein' as string]: `color-mix(in srgb, ${x.light.leaf[0]} 72%, #0b2014)`, ['--page' as string]: x.light.bg[1] }}>
+                  <span className="theme-swatch" style={{ background: `linear-gradient(135deg, ${x.light.bg[0]}, ${x.light.bg[2]})` }}>
+                    <PlantArt plant={x.id} />
+                    <i style={{ background: x.light.accent }} />
+                  </span>
+                  <b>{x.name}</b>
+                  <small>{x.blurb}</small>
+                  {(prefs.plant || 'monstera') === x.id && <span className="check"><Icon name="check" size={14} /></span>}
+                </button>
+              ))}
+            </div>
+            <small>Only on this device.</small>
           </div>
         </div>
       </Card>

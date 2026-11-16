@@ -16,6 +16,7 @@ Capacitor for Android and Electron for desktop.
 - **Insights** – 3/6/12-month view: balance trend, income vs spending, category ranking, weekday pattern, per-category trends, largest expenses, and plain-language observations.
 - **Goals** – savings targets with progress and the monthly amount needed to hit a date.
 - **Accounts & recurring** – multiple accounts with balances; bills and paychecks that enter themselves.
+- **Plant themes** – a frosted-glass design with large plant illustrations behind the glass, in 10 themes (Monstera, Eucalyptus, Fern, Bamboo, Sunflower, Maple, Sakura, Lavender, Blue Lotus, Olive), each in light and dark. Chart colours in every theme use pairs checked for colour-blind readability. Pick one under Settings → Preferences.
 - **Data** – CSV export, JSON backup/restore, light and dark themes, 30+ currencies.
 
 ## Sync
@@ -65,8 +66,8 @@ npm run dist:mac
 npm run android
 ```
 
-- Windows build output: `release/Ledgerleaf Setup 1.3.1.exe` (installer; shipped here renamed to `Ledgerleaf-1.3.1-windows-setup.exe`) and a portable `.exe`. Building on Linux needs Wine.
-- macOS output: `release/Ledgerleaf-1.3.1-mac-arm64.zip` (Apple silicon) and `-x64.zip` (Intel).
+- Windows build output: `release/Ledgerleaf Setup 1.4.0.exe` (installer; shipped here renamed to `Ledgerleaf-1.4.0-windows-setup.exe`) and a portable `.exe`. Building on Linux needs Wine.
+- macOS output: `release/Ledgerleaf-1.4.0-mac-arm64.zip` (Apple silicon) and `-x64.zip` (Intel).
 - Android output: `android/app/build/outputs/apk/debug/app-debug.apk`. Needs the Android SDK (`ANDROID_HOME`) and JDK 21.
 
 The desktop apps are unsigned. Windows SmartScreen will ask for confirmation
@@ -83,6 +84,7 @@ xattr -cr /Applications/Ledgerleaf.app
 | `src/store.ts` | local-first data store, merge rules, recurring items |
 | `src/sync.ts` | encrypted relay sync engine |
 | `src/receipt.ts` | on-device receipt OCR and parsing |
+| `src/themes.tsx` | plant themes, plant drawings and the leaf backdrop |
 | `src/calc.ts`, `src/charts.tsx` | derived figures and SVG charts |
 | `src/views.tsx`, `src/forms.tsx`, `src/App.tsx` | screens, dialogs, shell and settings |
 | `electron/main.cjs` | desktop window |
