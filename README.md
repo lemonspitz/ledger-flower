@@ -8,6 +8,7 @@ Capacitor for Android and Electron for desktop.
 
 - **Overview** – total balance, income / spending / saved for the month with change vs last month, a day-by-day spending pace line against last month and your budget, top categories, budget meters, 6-month cash flow, recent and upcoming items.
 - **Transactions** – expenses, income and transfers between accounts; search and filter by month, type, category and account.
+- **Payment methods** – record how each expense was paid: cash, a card (name, last 4 digits, network) or a QR bank/app (QRIS, GoPay, OVO, DANA, ShopeePay, PayNow…). Add them while entering an expense or under Settings → Payment methods; filter transactions by them and see spending per method in Insights. Scanned receipts pick the method up from lines like "VISA ****4821" or "GOPAY".
 - **Receipt scanning** – take a photo or pick an image of a receipt and the store, date, total and line items are filled in. Items can be saved separately, each with its own sub-category. The image is read on the device (bundled Tesseract OCR, English model) and is never uploaded.
 - **Calculator entry** – the amount field has a built-in keypad (shown by default on phones, one tap away on desktop), so `3.49 + 9.75 + 4.50` is totalled for you. Any amount field also accepts a typed sum.
 - **Pull-up menu** – on phones, drag the bottom bar up to see every section.
@@ -66,8 +67,8 @@ npm run dist:mac
 npm run android
 ```
 
-- Windows build output: `release/Ledgerleaf Setup 1.4.0.exe` (installer; shipped here renamed to `Ledgerleaf-1.4.0-windows-setup.exe`) and a portable `.exe`. Building on Linux needs Wine.
-- macOS output: `release/Ledgerleaf-1.4.0-mac-arm64.zip` (Apple silicon) and `-x64.zip` (Intel).
+- Windows build output: `release/Ledgerleaf Setup 1.5.0.exe` (installer; shipped here renamed to `Ledgerleaf-1.5.0-windows-setup.exe`) and a portable `.exe`. Building on Linux needs Wine.
+- macOS output: `release/Ledgerleaf-1.5.0-mac-arm64.zip` (Apple silicon) and `-x64.zip` (Intel).
 - Android output: `android/app/build/outputs/apk/debug/app-debug.apk`. Needs the Android SDK (`ANDROID_HOME`) and JDK 21.
 
 The desktop apps are unsigned. Windows SmartScreen will ask for confirmation

@@ -7,7 +7,7 @@
   --accent-wash: color-mix(in srgb, var(--accent) 14%, transparent); --track: color-mix(in srgb, var(--series-1) 24%, #ffffff);
   --vein: color-mix(in srgb, var(--leaf1) 72%, #0b2014);
   --page: var(--bg2);
-  --surface: rgba(255, 255, 255, 0.55); --raised: rgba(255, 255, 255, 0.74); --solid: rgba(250, 252, 249, 0.86); --wash: rgba(20, 40, 28, 0.06);
+  --surface: rgba(255, 255, 255, 0.55); --raised: rgba(255, 255, 255, 0.88); --solid: rgba(250, 252, 249, 0.86); --wash: rgba(20, 40, 28, 0.06);
   --ink: #0c140f; --ink-2: #48524b; --ink-3: #66716a;
   --line: rgba(20, 45, 30, 0.10); --line-strong: rgba(20, 45, 30, 0.20); --ring: rgba(10, 20, 15, 0.10);
   --glass-edge: rgba(255, 255, 255, 0.75); --glass-hi: rgba(255, 255, 255, 0.85);
@@ -24,7 +24,7 @@
     --accent: #34b36a; --accent-ink: #6fd497; --series-1: #0ca30c; --series-2: #9085e9;
     --bg1: #0f2a1b; --bg2: #0b1a12; --bg3: #12302a; --leaf1: #1d6b3e; --leaf2: #2f8a55;
     --vein: color-mix(in srgb, var(--leaf1) 70%, #000000);
-    --surface: rgba(30, 37, 32, 0.52); --raised: rgba(52, 60, 55, 0.62); --solid: rgba(22, 28, 24, 0.88); --wash: rgba(255, 255, 255, 0.07);
+    --surface: rgba(30, 37, 32, 0.52); --raised: rgba(44, 52, 47, 0.86); --solid: rgba(22, 28, 24, 0.88); --wash: rgba(255, 255, 255, 0.07);
     --ink: #eef3ef; --ink-2: #b8c3bb; --ink-3: #8f9b93;
     --line: rgba(255, 255, 255, 0.09); --line-strong: rgba(255, 255, 255, 0.17); --ring: rgba(255, 255, 255, 0.10);
     --glass-edge: rgba(255, 255, 255, 0.12); --glass-hi: rgba(255, 255, 255, 0.08);
@@ -38,7 +38,7 @@
   --accent: #34b36a; --accent-ink: #6fd497; --series-1: #0ca30c; --series-2: #9085e9;
   --bg1: #0f2a1b; --bg2: #0b1a12; --bg3: #12302a; --leaf1: #1d6b3e; --leaf2: #2f8a55;
   --vein: color-mix(in srgb, var(--leaf1) 70%, #000000);
-  --surface: rgba(30, 37, 32, 0.52); --raised: rgba(52, 60, 55, 0.62); --solid: rgba(22, 28, 24, 0.88); --wash: rgba(255, 255, 255, 0.07);
+  --surface: rgba(30, 37, 32, 0.52); --raised: rgba(44, 52, 47, 0.86); --solid: rgba(22, 28, 24, 0.88); --wash: rgba(255, 255, 255, 0.07);
   --ink: #eef3ef; --ink-2: #b8c3bb; --ink-3: #8f9b93;
   --line: rgba(255, 255, 255, 0.09); --line-strong: rgba(255, 255, 255, 0.17); --ring: rgba(255, 255, 255, 0.10);
   --glass-edge: rgba(255, 255, 255, 0.12); --glass-hi: rgba(255, 255, 255, 0.08);
@@ -443,3 +443,9 @@ input, select, textarea { border-radius: 12px; }
 .theme-opt b { font-size: 13.5px; padding: 0 4px; }
 .theme-opt small { font-size: 11.5px; color: var(--ink-3); padding: 0 4px; line-height: 1.3; }
 .theme-opt .check { position: absolute; top: 10px; right: 10px; width: 22px; height: 22px; border-radius: 50%; background: var(--accent); color: #fff; display: grid; place-items: center; }
+
+/* payment methods */
+.pay .chips + .chips { margin-top: 2px; }
+.chip svg { flex: none; }
+.chip-in input.last4 { width: 76px; }
+.pay-ic { display: inline-grid; place-items: center; vertical-align: -3px; color: var(--accent-ink); }

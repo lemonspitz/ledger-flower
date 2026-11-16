@@ -4,7 +4,23 @@
 import { today, ymd, type Category } from './store';
 
 export interface ReceiptItem { name: string; amount: number; sub?: string }
-export interface Receipt { merchant: string; date: string; total: number; items: ReceiptItem[]; cat?: string; text: string }
+export interface Receipt { merchant: string; date: string; total: number; items: ReceiptItem[]; cat?: string; text: string; pay?: PaidWith }
+export interface PaidWith { kind: 'cash' | 'card' | 'qr'; name?: string; last4?: string }
+
+const QR_BRANDS: [RegExp, string][] = [
+  [/\bgo-?pay\b/i, 'GoPay'], [/\bovo\b/i, 'OVO'], [/\bdana\b/i, 'DANA'], [/shopee\s?pay/i, 'ShopeePay'], [/link\s?aja/i, 'LinkAja'],
+  [/pay\s?now/i, 'PayNow'], [/prompt\s?pay/i, 'PromptPay'], [/duit\s?now/i, 'DuitNow'], [/\bgcash\b/i, 'GCash'], [/alipay/i, 'Alipay'],
+  [/we\s?chat\s?pay/i, 'WeChat Pay'], [/\bpaytm\b/i, 'Paytm'], [/phone\s?pe/i, 'PhonePe'], [/\bqris\b/i, 'QRIS'], [/\bqr\b/i, ''],
+];
+/** How the receipt says it was paid: a QR app, a card (with its last 4 digits when printed), or cash. */
+export function detectPayment(text: string): PaidWith | undefined {
+  for (const [re, name] of QR_BRANDS) if (re.test(text)) return { kind: 'qr', name: name || undefined };
+  const last4 = text.match(/(?:[*xX•#]{2,}\s?|ending\s+(?:in\s+)?)(\d{4})\b/)?.[1];
+  const network = text.match(/\b(visa|master\s?card|amex|american express|jcb|union\s?pay|discover)\b/i)?.[1];
+  if (last4 || network || /\b(debit|credit|kartu|card|edc)\b/i.test(text)) return { kind: 'card', last4, name: network?.replace(/\s+/g, '') };
+  if (/\b(cash|tunai|efectivo|esp[eè]ces|contanti|bargeld)\b/i.test(text)) return { kind: 'cash' };
+  return undefined;
+}
 
 // Prices come in many shapes: 3.49 · $3.49 · 1,60 € · 1.234,56 · Rp 17.500 · ¥1,239 · 98.000
 const CUR = String.raw`(?:[$€£¥₹₩₱฿₫]|rp\.?|idr|rm|usd|eur|sgd|php|thb|vnd|jpy|krw|inr)`;
@@ -155,7 +171,7 @@ export function parseReceipt(text: string, cats: Category[]): Receipt {
   }
   const c = cats.find((x) => x.id === cat);
   for (const i of items) i.sub = guessSub(i.name, c);
-  return { merchant, date: findDate(text) ?? today(), total, items, cat, text };
+  return { merchant, date: findDate(text) ?? today(), total, items, cat, text, pay: detectPayment(text) };
 }
 
 /** Sub-category for the receipt as a whole, e.g. "Coffee" for a café. */

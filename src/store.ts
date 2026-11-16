@@ -9,16 +9,20 @@ export interface Base { id: string; u: number; del?: 1 }
 export interface Account extends Base { name: string; type: 'cash' | 'bank' | 'card' | 'savings'; opening: number }
 export interface Category extends Base { name: string; kind: 'expense' | 'income'; icon: string; subs?: string[] }
 export type TxType = 'expense' | 'income' | 'transfer';
-export interface Tx extends Base { date: string; amount: number; type: TxType; acc: string; toAcc?: string; cat?: string; sub?: string; note: string; rid?: string }
+export interface Tx extends Base { date: string; amount: number; type: TxType; acc: string; toAcc?: string; cat?: string; sub?: string; note: string; rid?: string; pm?: PayKind; pmid?: string }
 export interface Budget extends Base { limit: number } // id === category id
 export interface Goal extends Base { name: string; target: number; saved: number; due?: string; icon: string }
 export interface Recurring extends Base { name: string; amount: number; type: 'expense' | 'income'; acc: string; cat: string; freq: 'weekly' | 'monthly' | 'yearly'; next: string }
 export interface Settings extends Base { currency: string }
+export type PayKind = 'cash' | 'card' | 'qr';
+/** A saved card or QR bank/app. Kept in the settings collection (ids start with "pm_") so devices on
+ *  older versions, which only read the "settings" record there, keep these intact when syncing. */
+export interface PayMethod extends Base { type: 'method'; kind: 'card' | 'qr'; name: string; last4?: string; network?: string; acc?: string }
 
 export interface Data {
   accounts: Record<string, Account>; categories: Record<string, Category>; tx: Record<string, Tx>;
   budgets: Record<string, Budget>; goals: Record<string, Goal>; recurring: Record<string, Recurring>;
-  settings: Record<string, Settings>;
+  settings: Record<string, Settings | PayMethod>;
 }
 export type Wire = Base & { c: Coll } & Record<string, unknown>;
 
@@ -89,7 +93,8 @@ export const onDirty = (f: (b: string[]) => void) => { dirtySubs.add(f); return 
 export const useData = () => useSyncExternalStore(subscribe, getData);
 
 /** Create or update records locally. */
-export function put<C extends Coll>(c: C, ...recs: (Omit<Data[C][string], 'u'> & { u?: number })[]) {
+type Draft<T> = T extends unknown ? Omit<T, 'u'> & { u?: number } : never;
+export function put<C extends Coll>(c: C, ...recs: Draft<Data[C][string]>[]) {
   const coll = { ...data[c] } as Record<string, Base>;
   const buckets = new Set<string>();
   for (const r of recs) { coll[r.id] = { ...r, u: tick() } as Base; buckets.add(bucketOf(c, r.id)); }

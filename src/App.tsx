@@ -219,6 +219,25 @@ function SettingsView({ m, prefs, setPrefs, open }: { m: Model; prefs: LocalPref
           </div>
         </div>
       </Card>
+      <Card title="Payment methods" sub="Cards and QR banks or apps you pay with. Pick one when adding an expense."
+        action={<button className="btn small" onClick={() => open({ k: 'method' })}><Icon name="plus" size={14} />Add</button>}>
+        {m.methods.length ? (
+          <div className="tx-list flush">
+            {m.methods.map((x) => (
+              <button key={x.id} className="tx" onClick={() => open({ k: 'method', method: x })}>
+                <span className="tx-ic"><Icon name={x.kind} size={18} /></span>
+                <span className="tx-main"><b>{m.methodName(x)}</b><small>{x.kind === 'card' ? `Card${x.network ? ` · ${x.network}` : ''}` : 'QR bank / app'}{m.acc(x.acc) ? ` · from ${m.acc(x.acc)!.name}` : ''}</small></span>
+                <Icon name="right" size={16} />
+              </button>
+            ))}
+          </div>
+        ) : (
+          <div className="btn-row">
+            <button className="btn" onClick={() => open({ k: 'method', kind: 'card' })}><Icon name="card" size={16} />Add a card</button>
+            <button className="btn" onClick={() => open({ k: 'method', kind: 'qr' })}><Icon name="qr" size={16} />Add a QR bank / app</button>
+          </div>
+        )}
+      </Card>
       <Card title="Categories" action={<button className="btn small" onClick={() => open({ k: 'category' })}><Icon name="plus" size={14} />Add</button>}>
         <div className="chips">{m.categories.map((c) => <button key={c.id} className="chip" onClick={() => open({ k: 'category', cat: c })}><span>{c.icon}</span>{c.name}{c.kind === 'income' && <small>income</small>}</button>)}</div>
       </Card>

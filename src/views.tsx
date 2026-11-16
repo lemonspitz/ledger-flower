@@ -5,8 +5,8 @@ import type { Dialog } from './forms';
 import { today, type Tx } from './store';
 import { Card, Delta, Empty, Icon, Seg } from './ui';
 
-export interface TxFilter { q: string; type: 'all' | Tx['type']; cat: string; acc: string; month: string }
-export const NO_FILTER: TxFilter = { q: '', type: 'all', cat: '', acc: '', month: '' };
+export interface TxFilter { q: string; type: 'all' | Tx['type']; cat: string; acc: string; month: string; pay: string }
+export const NO_FILTER: TxFilter = { q: '', type: 'all', cat: '', acc: '', month: '', pay: '' };
 export interface ViewProps { m: Model; month: string; setMonth: (m: string) => void; open: (d: Dialog) => void; go: (view: string, f?: Partial<TxFilter>) => void }
 
 export function MonthNav({ month, setMonth }: { month: string; setMonth: (m: string) => void }) {
@@ -24,7 +24,8 @@ const tone = (spent: number, limit: number, paceShare = 1) => (spent > limit ? '
 function TxRow({ t, m, onClick }: { t: Tx; m: Model; onClick: () => void }) {
   const c = m.cat(t.cat);
   const title = t.note || (t.type === 'transfer' ? 'Transfer' : c?.name ?? 'Uncategorized');
-  const sub = t.type === 'transfer' ? `${m.acc(t.acc)?.name ?? '—'} → ${m.acc(t.toAcc)?.name ?? '—'}` : `${c?.name ?? 'Uncategorized'}${t.sub ? ` › ${t.sub}` : ''} · ${m.acc(t.acc)?.name ?? '—'}`;
+  const paid = m.payLabel(t);
+  const sub = t.type === 'transfer' ? `${m.acc(t.acc)?.name ?? '—'} → ${m.acc(t.toAcc)?.name ?? '—'}` : `${c?.name ?? 'Uncategorized'}${t.sub ? ` › ${t.sub}` : ''} · ${paid || m.acc(t.acc)?.name || '—'}`;
   return (
     <button className="tx" onClick={onClick}>
       <span className="tx-ic">{t.type === 'transfer' ? '⇄' : c?.icon ?? '📦'}</span>
@@ -157,24 +158,29 @@ export function Transactions({ m, open, filter, setFilter }: ViewProps & { filte
     return m.txs.filter((t) =>
       (filter.type === 'all' || t.type === filter.type) && (!filter.cat || t.cat === filter.cat) &&
       (!filter.acc || t.acc === filter.acc || t.toAcc === filter.acc) && (!filter.month || t.date.startsWith(filter.month)) &&
-      (!q || t.note.toLowerCase().includes(q) || (t.sub?.toLowerCase().includes(q) ?? false) || (m.cat(t.cat)?.name.toLowerCase().includes(q) ?? false)));
+      (!filter.pay || (filter.pay.startsWith('pm_') ? t.pmid === filter.pay : filter.pay === 'none' ? t.type === 'expense' && !t.pm : t.pm === filter.pay)) &&
+      (!q || t.note.toLowerCase().includes(q) || (t.sub?.toLowerCase().includes(q) ?? false) || (m.cat(t.cat)?.name.toLowerCase().includes(q) ?? false) || m.payLabel(t).toLowerCase().includes(q)));
   }, [m, filter]);
   const inc = list.reduce((a, t) => a + (t.type === 'income' ? t.amount : 0), 0);
   const exp = list.reduce((a, t) => a + (t.type === 'expense' ? t.amount : 0), 0);
   const groups: [string, Tx[]][] = [];
   for (const t of list.slice(0, limit)) { const g = groups[groups.length - 1]; if (g && g[0] === t.date) g[1].push(t); else groups.push([t.date, [t]]); }
-  const active = filter.q || filter.type !== 'all' || filter.cat || filter.acc || filter.month;
+  const active = filter.q || filter.type !== 'all' || filter.cat || filter.acc || filter.month || filter.pay;
   const monthOpts = [...m.months.keys()].sort().reverse();
   const set = (p: Partial<TxFilter>) => { setLimit(150); setFilter({ ...filter, ...p }); };
   return (
     <div className="page">
       <header className="page-head"><h1>Transactions</h1><button className="btn primary desk" onClick={() => open({ k: 'tx' })}><Icon name="plus" size={16} />Add</button></header>
       <div className="filters">
-        <label className="search"><Icon name="search" size={16} /><input placeholder="Search notes, categories and sub-categories" value={filter.q} onChange={(e) => set({ q: e.target.value })} /></label>
+        <label className="search"><Icon name="search" size={16} /><input placeholder="Search notes, categories, payments" value={filter.q} onChange={(e) => set({ q: e.target.value })} /></label>
         <select value={filter.month} onChange={(e) => set({ month: e.target.value })} aria-label="Month"><option value="">All time</option>{monthOpts.map((x) => <option key={x} value={x}>{monthName(x)}</option>)}</select>
         <select value={filter.type} onChange={(e) => set({ type: e.target.value as TxFilter['type'] })} aria-label="Type"><option value="all">All types</option><option value="expense">Expenses</option><option value="income">Income</option><option value="transfer">Transfers</option></select>
         <select value={filter.cat} onChange={(e) => set({ cat: e.target.value })} aria-label="Category"><option value="">All categories</option>{m.categories.map((c) => <option key={c.id} value={c.id}>{c.icon} {c.name}</option>)}</select>
         <select value={filter.acc} onChange={(e) => set({ acc: e.target.value })} aria-label="Account"><option value="">All accounts</option>{m.accounts.map((a) => <option key={a.id} value={a.id}>{a.name}</option>)}</select>
+        <select value={filter.pay} onChange={(e) => set({ pay: e.target.value })} aria-label="Payment"><option value="">All payments</option><option value="cash">Cash</option>
+          <option value="card">Any card</option>{m.methods.filter((x) => x.kind === 'card').map((x) => <option key={x.id} value={x.id}>Card · {m.methodName(x)}</option>)}
+          <option value="qr">Any QR</option>{m.methods.filter((x) => x.kind === 'qr').map((x) => <option key={x.id} value={x.id}>QR · {x.name}</option>)}
+          <option value="none">Not recorded</option></select>
         {active && <button className="link" onClick={() => setFilter(NO_FILTER)}>Clear</button>}
       </div>
       <div className="totals">
@@ -310,6 +316,15 @@ export function Insights({ m, go }: ViewProps) {
   period.forEach((t) => { const [y, mo, d] = t.date.split('-').map(Number); wd[(new Date(y, mo - 1, d).getDay() + 6) % 7] += t.amount; });
   const weeks = Math.max(1, Math.round((Date.now() - new Date(start + 'T00:00').getTime()) / 6048e5));
   const biggest = [...period].sort((a, b) => b.amount - a.amount).slice(0, 6);
+  const byPay = new Map<string, { label: string; value: number; filter: string }>();
+  for (const t of period) {
+    const key = t.pm ? (t.pm === 'cash' ? 'cash' : m.method(t.pmid) ? t.pmid! : t.pm) : 'none';
+    const label = t.pm ? m.payLabel(t) : 'Not recorded';
+    const cur = byPay.get(key) ?? { label, value: 0, filter: key };
+    cur.value += t.amount; byPay.set(key, cur);
+  }
+  const payRows = [...byPay.values()].sort((a, b) => (a.filter === 'none' ? 1 : 0) - (b.filter === 'none' ? 1 : 0) || b.value - a.value);
+  const payIcon = (f: string) => (f === 'cash' ? 'cash' : f === 'none' ? 'more' : f === 'qr' || m.method(f)?.kind === 'qr' ? 'qr' : 'card');
   const withSubs = ranked.filter(([id]) => (m.cat(id)?.subs?.length ?? 0) > 0 || period.some((t) => t.cat === id && t.sub));
   const subId = withSubs.some(([id]) => id === subCat) ? subCat : withSubs[0]?.[0] ?? '';
   const subTotals = new Map<string, number>();
@@ -353,6 +368,12 @@ export function Insights({ m, go }: ViewProps) {
             series={[{ name: 'Income', color: 'var(--series-1)', values: sums.map((s) => s.inc) }, { name: 'Spending', color: 'var(--series-2)', values: sums.map((s) => s.exp) }]}
             extra={(i) => <span className="tip-net">Net<em>{sums[i].inc - sums[i].exp < 0 ? '−' : '+'}{m.fmt0(Math.abs(sums[i].inc - sums[i].exp))}</em></span>} />
         </Card>
+        {payRows.some((r) => r.filter !== 'none') && (
+          <Card title="By payment method" sub={`Spending over ${range} months, by card, QR app and cash`}>
+            <RankBars fmt={m.fmt0} onPick={(f) => go('transactions', { pay: f })}
+              rows={payRows.map((r) => ({ id: r.filter, value: r.value, note: `${pct(r.value, exp)}%`, label: <><span className="em pay-ic"><Icon name={payIcon(r.filter)} size={15} /></span>{r.filter === 'none' ? <span className="muted">{r.label}</span> : r.label}</> }))} />
+          </Card>
+        )}
         <Card title="Spending by category" sub={`Total over ${range} months`}>
           <RankBars fmt={m.fmt0} onPick={(id) => go('transactions', { cat: id })} rows={ranked.slice(0, 8).map(([id, v]) => ({ id, value: v, note: `${pct(v, exp)}%`, label: <><span className="em">{m.cat(id)?.icon ?? '📦'}</span>{m.cat(id)?.name ?? 'Other'}</> }))} />
         </Card>

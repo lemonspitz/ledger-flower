@@ -1,7 +1,7 @@
 import { useRef, useState } from 'react';
 import { Capacitor } from '@capacitor/core';
 import { OPS, evalExpr, parseAmount, type Model } from './calc';
-import { put, remove, today, txId, uid, type Account, type Category, type Goal, type Recurring, type Tx, type TxType } from './store';
+import { put, remove, today, txId, uid, type Account, type Category, type Goal, type PayKind, type PayMethod, type Recurring, type Tx, type TxType } from './store';
 import { merchantSub, scanReceipt } from './receipt';
 import { Field, Icon, Modal, Seg } from './ui';
 
@@ -16,7 +16,8 @@ export type Dialog =
   | { k: 'fund'; goal: Goal }
   | { k: 'account'; acc?: Account }
   | { k: 'recurring'; rec?: Recurring }
-  | { k: 'category'; cat?: Category };
+  | { k: 'category'; cat?: Category }
+  | { k: 'method'; method?: PayMethod; kind?: 'card' | 'qr' };
 
 export function Dialogs({ d, m, close }: { d: Dialog; m: Model; close: () => void }) {
   switch (d.k) {
@@ -27,6 +28,7 @@ export function Dialogs({ d, m, close }: { d: Dialog; m: Model; close: () => voi
     case 'account': return <AccountForm m={m} acc={d.acc} close={close} />;
     case 'recurring': return <RecurringForm m={m} rec={d.rec} close={close} />;
     case 'category': return <CategoryForm cat={d.cat} close={close} />;
+    case 'method': return <MethodForm m={m} method={d.method} kind={d.kind} close={close} />;
   }
 }
 
@@ -54,6 +56,11 @@ function TxForm({ m, tx, preset, close }: { m: Model; tx?: Tx; preset?: Partial<
   const [sub, setSub] = useState(init.sub ?? '');
   const [newSub, setNewSub] = useState<string | null>(null);
   const [note, setNote] = useState(init.note ?? '');
+  // New expenses start with however the last expense was paid.
+  const lastPaid = tx ? undefined : m.txs.find((x) => x.type === 'expense' && x.pm);
+  const [pm, setPm] = useState<PayKind | undefined>(init.pm ?? lastPaid?.pm);
+  const [pmid, setPmid] = useState<string | undefined>(init.pmid ?? lastPaid?.pmid);
+  const [newMethod, setNewMethod] = useState<{ name: string; last4: string } | null>(null);
   const [scan, setScan] = useState<{ busy?: boolean; progress?: number; error?: string; done?: string; text?: string }>({});
   const [items, setItems] = useState<ItemRow[]>([]);
   const [split, setSplit] = useState(false);
@@ -79,6 +86,15 @@ function TxForm({ m, tx, preset, close }: { m: Model; tx?: Tx; preset?: Partial<
       setAmount((r.total / 100).toFixed(2));
       setDate(r.date);
       if (r.merchant) setNote(r.merchant);
+      if (r.pay) {
+        // Match to a saved card (by last 4 digits, then network) or QR app (by name).
+        const pool = m.methods.filter((x) => x.kind === r.pay!.kind);
+        const hit = r.pay.kind === 'card'
+          ? pool.find((x) => r.pay!.last4 && x.last4 === r.pay!.last4) ?? pool.find((x) => r.pay!.name && x.network?.toLowerCase().replace(/\s/g, '') === r.pay!.name!.toLowerCase())
+          : pool.find((x) => r.pay!.name && x.name.toLowerCase().replace(/\s/g, '').includes(r.pay!.name!.toLowerCase().replace(/\s/g, '')));
+        setPm(r.pay.kind); setPmid(hit?.id);
+        if (hit?.acc && m.acc(hit.acc)) setAcc(hit.acc);
+      }
       if (r.cat) { setCat(r.cat); setSub(merchantSub(r.merchant, m.cat(r.cat)) ?? ''); }
       const rows = r.items.map((i) => ({ name: i.name, amt: (i.amount / 100).toFixed(2), sub: i.sub ?? '' }));
       const sum = r.items.reduce((a, i) => a + i.amount, 0);
@@ -105,7 +121,8 @@ function TxForm({ m, tx, preset, close }: { m: Model; tx?: Tx; preset?: Partial<
   const save = (e: React.FormEvent) => {
     e.preventDefault();
     if (!ok) return;
-    const base = { date, type, acc, rid: tx?.rid };
+    const pay = type === 'expense' && pm ? { pm, pmid: pm === 'cash' ? undefined : m.methods.some((x) => x.id === pmid && x.kind === pm) ? pmid : undefined } : { pm: undefined, pmid: undefined };
+    const base = { date, type, acc, rid: tx?.rid, ...pay };
     if (useSplit) {
       const where = note.trim();
       put('tx', ...items.filter((i) => parseAmount(i.amt) > 0).map((i) => ({
@@ -187,6 +204,44 @@ function TxForm({ m, tx, preset, close }: { m: Model; tx?: Tx; preset?: Partial<
             </div>
           </div>
         )}
+        {type === 'expense' && (
+          <div className="subs pay">
+            <span className="subs-label">Paid with</span>
+            <div className="chips small" role="radiogroup" aria-label="Paid with">
+              {([['cash', 'Cash', 'cash'], ['card', 'Card', 'card'], ['qr', 'QR', 'qr']] as const).map(([k, label, icon]) => (
+                <button type="button" key={k} role="radio" aria-checked={pm === k} className={pm === k ? 'chip on' : 'chip'} onClick={() => { setPm(pm === k ? undefined : k); setNewMethod(null); }}>
+                  <Icon name={icon} size={15} />{label}
+                </button>
+              ))}
+            </div>
+            {(pm === 'card' || pm === 'qr') && (
+              <div className="chips small" role="radiogroup" aria-label={pm === 'card' ? 'Which card' : 'Which bank or app'}>
+                {m.methods.filter((x) => x.kind === pm).map((x) => (
+                  <button type="button" key={x.id} role="radio" aria-checked={pmid === x.id} className={pmid === x.id ? 'chip on' : 'chip'}
+                    onClick={() => { setPmid(pmid === x.id ? undefined : x.id); if (x.acc && m.acc(x.acc) && pmid !== x.id) setAcc(x.acc); }}>{m.methodName(x)}</button>
+                ))}
+                {newMethod === null ? (
+                  <button type="button" className="chip add" onClick={() => setNewMethod({ name: '', last4: '' })}><Icon name="plus" size={13} />{pm === 'card' ? 'New card' : 'New bank / app'}</button>
+                ) : (
+                  <span className="chip-in">
+                    <input autoFocus list={pm === 'qr' ? 'qr-apps' : 'card-names'} value={newMethod.name} maxLength={30} aria-label={pm === 'card' ? 'Card name' : 'Bank or app name'}
+                      placeholder={pm === 'card' ? 'e.g. BCA Debit' : 'e.g. GoPay'} onChange={(e) => setNewMethod({ ...newMethod, name: e.target.value })}
+                      onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); (e.currentTarget.parentElement?.querySelector('.btn') as HTMLButtonElement)?.click(); } if (e.key === 'Escape') { e.stopPropagation(); setNewMethod(null); } }} />
+                    {pm === 'card' && <input className="last4" inputMode="numeric" value={newMethod.last4} maxLength={4} placeholder="Last 4" aria-label="Last 4 digits (optional)" onChange={(e) => setNewMethod({ ...newMethod, last4: e.target.value.replace(/\D/g, '') })} />}
+                    <button type="button" className="btn small" onClick={() => {
+                      const name = newMethod.name.trim();
+                      if (!name) return setNewMethod(null);
+                      const rec: Omit<PayMethod, 'u'> = { id: 'pm_' + uid(), type: 'method', kind: pm, name, last4: pm === 'card' && newMethod.last4.length === 4 ? newMethod.last4 : undefined, acc };
+                      put('settings', rec); setPmid(rec.id); setNewMethod(null);
+                    }}>Add</button>
+                  </span>
+                )}
+              </div>
+            )}
+            <datalist id="qr-apps">{QR_APPS.map((x) => <option key={x} value={x} />)}</datalist>
+            <datalist id="card-names">{CARD_NETWORKS.map((x) => <option key={x} value={x} />)}</datalist>
+          </div>
+        )}
         {type === 'expense' && items.length > 0 && (
           <div className="items">
             <label className="check"><input type="checkbox" checked={split} onChange={(e) => setSplit(e.target.checked)} />Save each item separately <small>({items.length} found — lets you track sub-categories)</small></label>
@@ -251,6 +306,42 @@ function Keypad({ value, onChange }: { value: string; onChange: (v: string) => v
         <button type="button" key={k} className={c} onClick={() => press(k)} aria-label={label[k] ?? k}>{k === '⌫' ? <Icon name="back" size={22} /> : k}</button>
       ))}
     </div>
+  );
+}
+
+export const QR_APPS = ['QRIS', 'GoPay', 'OVO', 'DANA', 'ShopeePay', 'LinkAja', 'BCA mobile', 'Livin\u2019 by Mandiri', 'BRImo', 'BNI Mobile', 'Jenius', 'PayNow', 'PromptPay', 'DuitNow', 'GCash', 'Maya', 'Alipay', 'WeChat Pay', 'Paytm', 'PhonePe', 'Google Pay', 'PayPal', 'Venmo', 'Cash App'];
+export const CARD_NETWORKS = ['Visa', 'Mastercard', 'American Express', 'JCB', 'UnionPay', 'GPN', 'Discover', 'Other'];
+
+function MethodForm({ m, method, kind: k0, close }: { m: Model; method?: PayMethod; kind?: 'card' | 'qr'; close: () => void }) {
+  const [kind, setKind] = useState<'card' | 'qr'>(method?.kind ?? k0 ?? 'card');
+  const [name, setName] = useState(method?.name ?? '');
+  const [last4, setLast4] = useState(method?.last4 ?? '');
+  const [network, setNetwork] = useState(method?.network ?? '');
+  const [acc, setAcc] = useState(method?.acc ?? '');
+  const used = method ? m.txs.filter((t) => t.pmid === method.id).length : 0;
+  const ok = name.trim().length > 0 && (last4 === '' || /^\d{4}$/.test(last4));
+  return (
+    <Modal title={method ? `Edit ${method.kind === 'card' ? 'card' : 'QR bank / app'}` : 'New payment method'} onClose={close}
+      footer={<Actions close={close} disabled={!ok} onDelete={method ? () => remove('settings', method.id) : undefined} />}>
+      <form id="dlg" className="form" onSubmit={(e) => { e.preventDefault(); if (!ok) return;
+        put('settings', { id: method?.id ?? 'pm_' + uid(), type: 'method', kind, name: name.trim(), last4: kind === 'card' && last4 ? last4 : undefined, network: kind === 'card' && network ? network : undefined, acc: acc || undefined }); close(); }}>
+        {!method && <Seg value={kind} onChange={setKind} options={[['card', 'Card'], ['qr', 'QR bank / app']]} />}
+        <Field label={kind === 'card' ? 'Card name' : 'Bank or app'}>
+          <input autoFocus list={kind === 'qr' ? 'qr-apps-2' : undefined} value={name} maxLength={30} onChange={(e) => setName(e.target.value)} placeholder={kind === 'card' ? 'e.g. BCA Debit, Travel card' : 'e.g. GoPay, BCA mobile'} />
+          <datalist id="qr-apps-2">{QR_APPS.map((x) => <option key={x} value={x} />)}</datalist>
+        </Field>
+        {kind === 'card' && (
+          <div className="row2">
+            <Field label="Last 4 digits" hint="Optional. Helps match scanned receipts."><input inputMode="numeric" maxLength={4} value={last4} onChange={(e) => setLast4(e.target.value.replace(/\D/g, ''))} placeholder="4821" /></Field>
+            <Field label="Network"><select value={network} onChange={(e) => setNetwork(e.target.value)}><option value="">—</option>{CARD_NETWORKS.map((x) => <option key={x}>{x}</option>)}</select></Field>
+          </div>
+        )}
+        <Field label="Pays from account" hint="Optional. Picking this method fills in the account for you.">
+          <select value={acc} onChange={(e) => setAcc(e.target.value)}><option value="">No default</option>{m.accounts.map((a) => <option key={a.id} value={a.id}>{a.name}</option>)}</select>
+        </Field>
+        {used > 0 && <p className="hint">Used by {used} transaction{used === 1 ? '' : 's'}. Deleting it keeps them, marked as {kind === 'card' ? 'Card' : 'QR'} without a name.</p>}
+      </form>
+    </Modal>
   );
 }
 

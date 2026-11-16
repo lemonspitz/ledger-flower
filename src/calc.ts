@@ -1,5 +1,5 @@
 import { useMemo } from 'react';
-import { live, today, useData, ymd, type Data, type Tx } from './store';
+import { live, today, useData, ymd, type Data, type PayMethod, type Settings, type Tx } from './store';
 
 export const curMonth = () => today().slice(0, 7);
 export function addMonths(m: string, n: number) {
@@ -40,13 +40,25 @@ export function buildModel(data: Data) {
     else { bump(t.acc, -t.amount); bump(t.toAcc, t.amount); }
   }
   const netWorth = [...balances.values()].reduce((a, b) => a + b, 0);
-  const currency = data.settings.settings?.currency || 'USD';
+  const currency = (data.settings.settings as Settings | undefined)?.currency || 'USD';
+  const methods = (live(data.settings).filter((r) => (r as PayMethod).type === 'method') as PayMethod[]).sort((a, b) => a.kind.localeCompare(b.kind) || a.name.localeCompare(b.name));
+  const methodName = (p: PayMethod) => p.name + (p.last4 ? ` ••${p.last4}` : '');
   const nf = new Intl.NumberFormat(undefined, { style: 'currency', currency });
   const nf0 = new Intl.NumberFormat(undefined, { style: 'currency', currency, maximumFractionDigits: 0 });
   const nfc = new Intl.NumberFormat(undefined, { style: 'currency', currency, notation: 'compact', maximumFractionDigits: 1 });
   return {
     data, txs, accounts, categories, balances, months, netWorth, currency,
     month: (m: string) => months.get(m) ?? emptyMonth(),
+    methods,
+    method: (id?: string) => methods.find((p) => p.id === id),
+    methodName,
+    /** "Cash", "Card · BCA ••4821", "QR · GoPay", or '' when not recorded. */
+    payLabel(t: Pick<Tx, 'pm' | 'pmid'>) {
+      if (!t.pm) return '';
+      if (t.pm === 'cash') return 'Cash';
+      const p = methods.find((x) => x.id === t.pmid);
+      return (t.pm === 'card' ? 'Card' : 'QR') + (p ? ` · ${methodName(p)}` : '');
+    },
     cat: (id?: string) => (id && data.categories[id] && !data.categories[id].del ? data.categories[id] : undefined),
     acc: (id?: string) => (id && data.accounts[id] && !data.accounts[id].del ? data.accounts[id] : undefined),
     budgets: live(data.budgets).filter((b) => b.limit > 0 && data.categories[b.id] && !data.categories[b.id].del),
@@ -118,7 +130,7 @@ export function cumulative(s: MonthSum, m: string, upTo?: number) {
 
 export function toCsv(m: Model) {
   const esc = (v: string) => (/[",\n]/.test(v) ? `"${v.replace(/"/g, '""')}"` : v);
-  const rows = [['Date', 'Type', 'Amount', 'Category', 'Subcategory', 'Account', 'To account', 'Note']];
-  for (const t of m.txs) rows.push([t.date, t.type, (t.amount / 100).toFixed(2), m.cat(t.cat)?.name ?? '', t.sub ?? '', m.acc(t.acc)?.name ?? '', m.acc(t.toAcc)?.name ?? '', t.note]);
+  const rows = [['Date', 'Type', 'Amount', 'Category', 'Subcategory', 'Account', 'To account', 'Payment', 'Note']];
+  for (const t of m.txs) rows.push([t.date, t.type, (t.amount / 100).toFixed(2), m.cat(t.cat)?.name ?? '', t.sub ?? '', m.acc(t.acc)?.name ?? '', m.acc(t.toAcc)?.name ?? '', m.payLabel(t), t.note]);
   return rows.map((r) => r.map(esc).join(',')).join('\n');
 }

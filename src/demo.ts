@@ -1,6 +1,6 @@
 // Sample data so a new user can see every screen populated before entering their own.
 import { addMonths, curMonth, daysIn } from './calc';
-import { today, txId, type Data, type Tx } from './store';
+import { getData, today, txId, type Data, type PayMethod, type Settings, type Tx } from './store';
 
 export function demoData(): Partial<Data> {
   let seed = 42;
@@ -12,7 +12,10 @@ export function demoData(): Partial<Data> {
   const add = (date: string, type: Tx['type'], amount: number, acc: string, cat: string | undefined, note: string, toAcc?: string) => {
     if (date > t) return;
     const id = txId(date, 'demo' + n++);
-    tx[id] = { id, u: 0, date, type, amount, acc, cat, note, toAcc };
+    // How it was paid: cash from the cash account, the credit card from the card account, otherwise debit card or a QR app.
+    const pay: Pick<Tx, 'pm' | 'pmid'> = type !== 'expense' ? {} : acc === 'acc_cash' ? { pm: 'cash' } : acc === 'acc_card' ? { pm: 'card', pmid: 'pm_demo_credit' }
+      : cat === 'cat_housing' ? {} : (cat === 'cat_dining' || cat === 'cat_fun' || cat === 'cat_transport') && rnd() < 0.6 ? { pm: 'qr', pmid: rnd() < 0.6 ? 'pm_demo_gpay' : 'pm_demo_paypal' } : { pm: 'card', pmid: 'pm_demo_debit' };
+    tx[id] = { id, u: 0, date, type, amount, acc, cat, note, toAcc, ...pay };
   };
   const spots: [string, string[], number, number, number][] = [
     // category, merchants, visits per month, min, max (cents)
@@ -55,6 +58,15 @@ export function demoData(): Partial<Data> {
       acc_savings: { id: 'acc_savings', u: 0, name: 'Savings', type: 'savings', opening: 650000 },
       acc_card: { id: 'acc_card', u: 0, name: 'Credit card', type: 'card', opening: -42000 },
       acc_cash: { id: 'acc_cash', u: 0, name: 'Cash', type: 'cash', opening: 6000 },
+    },
+    settings: {
+      settings: { id: 'settings', u: 0, currency: (getData().settings.settings as Settings | undefined)?.currency ?? 'USD' },
+      ...Object.fromEntries(([
+        { id: 'pm_demo_debit', u: 0, type: 'method', kind: 'card', name: 'Everyday Debit', last4: '4821', network: 'Visa', acc: 'acc_main' },
+        { id: 'pm_demo_credit', u: 0, type: 'method', kind: 'card', name: 'Rewards Credit', last4: '9034', network: 'Mastercard', acc: 'acc_card' },
+        { id: 'pm_demo_gpay', u: 0, type: 'method', kind: 'qr', name: 'Google Pay', acc: 'acc_main' },
+        { id: 'pm_demo_paypal', u: 0, type: 'method', kind: 'qr', name: 'PayPal', acc: 'acc_main' },
+      ] as PayMethod[]).map((x) => [x.id, x])),
     },
     budgets: Object.fromEntries(([['cat_groceries', 55000], ['cat_dining', 26000], ['cat_transport', 18000], ['cat_fun', 12000], ['cat_shopping', 20000], ['cat_utilities', 22000], ['cat_subs', 7000], ['cat_housing', 145000]] as const).map(([id, limit]) => [id, { id, u: 0, limit }])),
     goals: {
