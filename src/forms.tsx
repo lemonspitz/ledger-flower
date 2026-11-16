@@ -1,6 +1,6 @@
 import { useRef, useState } from 'react';
 import { Capacitor } from '@capacitor/core';
-import { parseAmount, type Model } from './calc';
+import { OPS, evalExpr, parseAmount, type Model } from './calc';
 import { put, remove, today, txId, uid, type Account, type Category, type Goal, type Recurring, type Tx, type TxType } from './store';
 import { merchantSub, scanReceipt } from './receipt';
 import { Field, Icon, Modal, Seg } from './ui';
@@ -57,6 +57,7 @@ function TxForm({ m, tx, preset, close }: { m: Model; tx?: Tx; preset?: Partial<
   const [scan, setScan] = useState<{ busy?: boolean; progress?: number; error?: string; done?: string; text?: string }>({});
   const [items, setItems] = useState<ItemRow[]>([]);
   const [split, setSplit] = useState(false);
+  const [pad, setPad] = useState(MOBILE);
   const fileRef = useRef<HTMLInputElement>(null);
   const camRef = useRef<HTMLInputElement>(null);
 
@@ -153,8 +154,14 @@ function TxForm({ m, tx, preset, close }: { m: Model; tx?: Tx; preset?: Partial<
         )}
         <div className="amount-in">
           <span>{type === 'expense' ? '−' : type === 'income' ? '+' : '⇄'}</span>
-          <input autoFocus={!MOBILE} inputMode="decimal" placeholder="0.00" value={useSplit ? (cents / 100).toFixed(2) : amount} readOnly={useSplit} onChange={(e) => setAmount(e.target.value)} aria-label="Amount" />
+          <input autoFocus={!MOBILE} inputMode={pad && MOBILE ? 'none' : 'decimal'} placeholder="0.00" value={useSplit ? (cents / 100).toFixed(2) : amount}
+            readOnly={useSplit || (pad && MOBILE)} aria-label="Amount"
+            onChange={(e) => setAmount(e.target.value.replace(/[^\d.,+\-−*/×÷() ]/g, ''))}
+            onKeyDown={(e) => { if (e.key === '=') { e.preventDefault(); const v = evalExpr(amount.replace(/[+\-−*/×÷\s]+$/, '')); if (v !== null) setAmount(fmtCalc(v)); } }} />
+          {!useSplit && <button type="button" className={`icon-btn calc-toggle${pad ? ' on' : ''}`} onClick={() => setPad(!pad)} aria-pressed={pad} aria-label={pad ? 'Hide calculator' : 'Show calculator'} title="Calculator"><Icon name="calc" /></button>}
         </div>
+        {!useSplit && OPS.test(amount.replace(/^[-−]/, '')) && <p className="calc-result">= {(cents / 100).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</p>}
+        {!useSplit && pad && <Keypad value={amount} onChange={setAmount} />}
         {type !== 'transfer' && (
           <div className="chips" role="radiogroup" aria-label="Category">
             {cats.map((c) => (
@@ -215,6 +222,35 @@ function TxForm({ m, tx, preset, close }: { m: Model; tx?: Tx; preset?: Partial<
         {type === 'transfer' && m.accounts.length < 2 && <p className="hint">Add a second account to record transfers.</p>}
       </form>
     </Modal>
+  );
+}
+
+const fmtCalc = (v: number) => String(Math.round(Math.abs(v) * 100) / 100);
+
+/** On-screen calculator: tap prices and operators, the total is used when you save. */
+function Keypad({ value, onChange }: { value: string; onChange: (v: string) => void }) {
+  const press = (k: string) => {
+    const v = value;
+    if (k === 'C') return onChange('');
+    if (k === '⌫') return onChange(v.slice(0, -1));
+    if (k === '=') { const r = evalExpr(v.replace(/[+\-−×÷*/]+$/, '')); if (r !== null) onChange(fmtCalc(r)); return; }
+    if ('+−×÷'.includes(k)) {
+      if (!v) return;
+      return onChange(/[+\-−×÷*/]$/.test(v) ? v.slice(0, -1) + k : v + k);
+    }
+    const current = v.split(/[+\-−×÷*/]/).pop() ?? '';
+    if (k === '.') { if (current.includes('.') || current.includes(',')) return; return onChange(v + (current ? '.' : '0.')); }
+    if (/[.,]\d{2}$/.test(current)) return; // two decimal places is enough for money
+    onChange(current === '0' ? v.slice(0, -1) + k : v + k);
+  };
+  const keys: [string, string][] = [['C', 'fn'], ['÷', 'op'], ['×', 'op'], ['⌫', 'fn'], ['7', ''], ['8', ''], ['9', ''], ['−', 'op'], ['4', ''], ['5', ''], ['6', ''], ['+', 'op'], ['1', ''], ['2', ''], ['3', ''], ['=', 'eq'], ['0', 'zero'], ['.', '']];
+  const label: Record<string, string> = { C: 'Clear', '⌫': 'Delete', '÷': 'Divide', '×': 'Multiply', '−': 'Minus', '+': 'Plus', '=': 'Equals', '.': 'Decimal point' };
+  return (
+    <div className="keypad" role="group" aria-label="Calculator">
+      {keys.map(([k, c]) => (
+        <button type="button" key={k} className={c} onClick={() => press(k)} aria-label={label[k] ?? k}>{k === '⌫' ? <Icon name="back" size={22} /> : k}</button>
+      ))}
+    </div>
   );
 }
 

@@ -70,8 +70,37 @@ export function useModel() {
   return useMemo(() => buildModel(data), [data]);
 }
 
+const num = (t: string) => Number(t.replace(/,(\d{1,2})$/, '.$1').replace(/,/g, ''));
+export const OPS = /[+\-−*/×÷]/;
+/** Works out a sum typed as text, e.g. "3.49 + 9.75 × 2". Returns null if it isn't a complete sum. */
+export function evalExpr(input: string): number | null {
+  const toks = input.replace(/\s+/g, '').match(/\d[\d.,]*|\.\d+|[+\-−*/×÷()]/g);
+  if (!toks || toks.join('') !== input.replace(/\s+/g, '').replace(/[^\d.,+\-−*/×÷()]/g, '')) return null;
+  let i = 0;
+  const peek = () => toks[i];
+  const expr = (): number => {
+    let v = term();
+    while (peek() === '+' || peek() === '-' || peek() === '−') v = toks[i++] === '+' ? v + term() : v - term();
+    return v;
+  };
+  const term = (): number => {
+    let v = factor();
+    while (peek() === '*' || peek() === '×' || peek() === '/' || peek() === '÷') { const op = toks[i++]; const r = factor(); v = op === '*' || op === '×' ? v * r : v / r; }
+    return v;
+  };
+  const factor = (): number => {
+    const t = toks[i++];
+    if (t === '-' || t === '−') return -factor();
+    if (t === '(') { const v = expr(); if (toks[i++] !== ')') throw 0; return v; }
+    if (t === undefined || !/\d/.test(t)) throw 0;
+    return num(t);
+  };
+  try { const v = expr(); return i === toks.length && Number.isFinite(v) ? v : null; } catch { return null; }
+}
+/** The amount in cents. Accepts plain numbers (12.50, 1,234.56, 12,50) and sums (3.49 + 9.75). */
 export const parseAmount = (s: string) => {
-  const n = Number(s.replace(/[^\d.,-]/g, '').replace(/,(\d{1,2})$/, '.$1').replace(/,/g, ''));
+  const t = s.replace(/[^\d.,+\-−*/×÷() ]/g, '').trim().replace(/[+\-−*/×÷\s]+$/, '');
+  const n = evalExpr(t) ?? num(t.replace(/[^\d.,-]/g, ''));
   return Number.isFinite(n) ? Math.round(Math.abs(n) * 100) : 0;
 };
 export const pct = (a: number, b: number) => (b ? Math.round((a / b) * 100) : 0);

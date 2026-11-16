@@ -72,6 +72,28 @@ export default function App() {
   const props: ViewProps = { m, month, setMonth, open: setDialog, go };
   const mobileMore = ['goals', 'accounts', 'settings'].includes(view);
   const [sheet, setSheet] = useState(false);
+  // Pull-up dock: how far (px) the menu is being dragged up from the dock, or null when not dragging.
+  const [pull, setPull] = useState<number | null>(null);
+  const drag = useRef<{ y: number; id: number; moved: boolean } | null>(null);
+  const PULL_OPEN = 90;
+  const dockDown = (e: React.PointerEvent) => { if (!sheet) drag.current = { y: e.clientY, id: e.pointerId, moved: false }; };
+  const dockMove = (e: React.PointerEvent) => {
+    const d = drag.current;
+    if (!d || d.id !== e.pointerId) return;
+    const dy = d.y - e.clientY;
+    if (!d.moved && dy > 8) { d.moved = true; (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId); }
+    if (d.moved) setPull(Math.max(0, dy));
+  };
+  const dockUp = () => {
+    const d = drag.current;
+    drag.current = null;
+    if (!d?.moved) return;
+    suppressClick.current = true;
+    setTimeout(() => { suppressClick.current = false; }, 50);
+    if ((pull ?? 0) > PULL_OPEN) { setSheet(true); setPull(null); }
+    else { setPull(0); setTimeout(() => setPull(null), 200); }
+  };
+  const suppressClick = useRef(false);
 
   return (
     <div className="app">
@@ -92,20 +114,23 @@ export default function App() {
         {view === 'accounts' && <Accounts {...props} />}
         {view === 'settings' && <SettingsView m={m} prefs={prefs} setPrefs={setPrefs} open={setDialog} />}
       </main>
-      <nav className="tabs">
+      <nav className="tabs" onPointerDown={dockDown} onPointerMove={dockMove} onPointerUp={dockUp} onPointerCancel={dockUp}
+        onClickCapture={(e) => { if (suppressClick.current) { e.stopPropagation(); e.preventDefault(); } }}>
         {NAV.slice(0, 2).map(([id, label, icon]) => <button key={id} className={view === id ? 'on' : ''} onClick={() => go(id)}><Icon name={icon} />{label}</button>)}
         <button className="fab" onClick={() => setDialog({ k: 'tx' })} aria-label="Add transaction"><Icon name="plus" size={26} /></button>
         {NAV.slice(2, 4).map(([id, label, icon]) => <button key={id} className={view === id ? 'on' : ''} onClick={() => go(id)}><Icon name={icon} />{label}</button>)}
         <button className={mobileMore || sheet ? 'on' : ''} onClick={() => setSheet(!sheet)} aria-expanded={sheet} aria-haspopup="menu"><Icon name="more" />More</button>
       </nav>
-      {sheet && <MoreSheet view={view} onPick={(id) => { setSheet(false); go(id); }} onClose={() => setSheet(false)} />}
+      {(sheet || pull !== null) && <MoreSheet key="menu" view={view} pull={sheet ? undefined : pull ?? 0} animateIn={pull === null && sheet}
+        onPick={(id) => { setSheet(false); setPull(null); go(id); }} onClose={() => { setSheet(false); setPull(null); }} />}
       {dialog && <Dialogs d={dialog} m={m} close={() => setDialog(null)} />}
     </div>
   );
 }
 
-function MoreSheet({ view, onPick, onClose }: { view: string; onPick: (id: string) => void; onClose: () => void }) {
+function MoreSheet({ view, onPick, onClose, pull, animateIn }: { view: string; onPick: (id: string) => void; onClose: () => void; pull?: number; animateIn: boolean }) {
   const [closing, setClosing] = useState(false);
+  const [slideIn] = useState(animateIn);
   const [drag, setDrag] = useState(0);
   const startY = useRef<number | null>(null);
   const close = useCallback(() => { setClosing(true); setTimeout(onClose, 180); }, [onClose]);
@@ -115,15 +140,18 @@ function MoreSheet({ view, onPick, onClose }: { view: string; onPick: (id: strin
     return () => window.removeEventListener('keydown', k);
   }, [close]);
   return (
-    <div className={`sheet-scrim${closing ? ' closing' : ''}`} onClick={close}>
-      <div className="sheet" role="menu" aria-label="More" onClick={(e) => e.stopPropagation()} style={drag ? { transform: `translateY(${drag}px)`, transition: 'none' } : undefined}
+    <div className={`sheet-scrim${closing ? ' closing' : ''}${slideIn ? '' : ' no-anim'}`} onClick={close} style={pull !== undefined ? { background: `rgba(0,0,0,${Math.min(0.4, pull / 600)})` } : undefined}>
+      <div className="sheet" role="menu" aria-label="All sections" onClick={(e) => e.stopPropagation()}
+        style={pull !== undefined ? { transform: `translateY(max(0px, calc(100% - ${pull + 70}px)))`, transition: pull === 0 ? undefined : 'none' } : drag ? { transform: `translateY(${drag}px)`, transition: 'none' } : undefined}
         onTouchStart={(e) => { startY.current = e.touches[0].clientY; }}
         onTouchMove={(e) => { if (startY.current !== null) setDrag(Math.max(0, e.touches[0].clientY - startY.current)); }}
         onTouchEnd={() => { if (drag > 70) close(); setDrag(0); startY.current = null; }}>
         <div className="sheet-handle" />
-        {NAV.slice(4).map(([id, label, icon]) => (
-          <button key={id} role="menuitem" className={view === id ? 'on' : ''} onClick={() => onPick(id)}><span className="sheet-ic"><Icon name={icon} /></span>{label}<Icon name="right" size={16} /></button>
-        ))}
+        <div className="sheet-grid">
+          {NAV.map(([id, label, icon]) => (
+            <button key={id} role="menuitem" className={view === id ? 'on' : ''} onClick={() => onPick(id)}><span className="sheet-ic"><Icon name={icon} /></span>{label}</button>
+          ))}
+        </div>
         <p className="credit">Made by <a href={AUTHOR_URL} target="_blank" rel="noreferrer">{AUTHOR}</a></p>
       </div>
     </div>

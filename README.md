@@ -9,6 +9,8 @@ Capacitor for Android and Electron for desktop.
 - **Overview** – total balance, income / spending / saved for the month with change vs last month, a day-by-day spending pace line against last month and your budget, top categories, budget meters, 6-month cash flow, recent and upcoming items.
 - **Transactions** – expenses, income and transfers between accounts; search and filter by month, type, category and account.
 - **Receipt scanning** – take a photo or pick an image of a receipt and the store, date, total and line items are filled in. Items can be saved separately, each with its own sub-category. The image is read on the device (bundled Tesseract OCR, English model) and is never uploaded.
+- **Calculator entry** – the amount field has a built-in keypad (shown by default on phones, one tap away on desktop), so `3.49 + 9.75 + 4.50` is totalled for you. Any amount field also accepts a typed sum.
+- **Pull-up menu** – on phones, drag the bottom bar up (or tap More) to see every section.
 - **Sub-categories** – every category can have its own list (Groceries › Vegetables, Meat & fish, …); add new ones while entering a transaction or in Settings.
 - **Budgets** – monthly limit per category with remaining amount, per-day allowance and over/at-risk warnings.
 - **Insights** – 3/6/12-month view: balance trend, income vs spending, category ranking, weekday pattern, per-category trends, largest expenses, and plain-language observations.
@@ -63,8 +65,8 @@ npm run dist:mac
 npm run android
 ```
 
-- Windows build output: `release/Ledgerleaf Setup 1.2.1.exe` (installer; shipped here renamed to `Ledgerleaf-1.2.1-windows-setup.exe`) and a portable `.exe`. Building on Linux needs Wine.
-- macOS output: `release/Ledgerleaf-1.2.1-mac-arm64.zip` (Apple silicon) and `-x64.zip` (Intel).
+- Windows build output: `release/Ledgerleaf Setup 1.3.0.exe` (installer; shipped here renamed to `Ledgerleaf-1.3.0-windows-setup.exe`) and a portable `.exe`. Building on Linux needs Wine.
+- macOS output: `release/Ledgerleaf-1.3.0-mac-arm64.zip` (Apple silicon) and `-x64.zip` (Intel).
 - Android output: `android/app/build/outputs/apk/debug/app-debug.apk`. Needs the Android SDK (`ANDROID_HOME`) and JDK 21.
 
 The desktop apps are unsigned. Windows SmartScreen will ask for confirmation

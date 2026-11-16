@@ -17,6 +17,8 @@ const P: Record<string, string> = {
   search: 'M11 18a7 7 0 100-14 7 7 0 000 14zM21 21l-5-5',
   warn: 'M12 3l10 18H2L12 3zM12 10v5M12 18h.01',
   check: 'M4 12l5 5L20 6',
+  calc: 'M6 3h12a1 1 0 011 1v16a1 1 0 01-1 1H6a1 1 0 01-1-1V4a1 1 0 011-1zM8.5 6.5h7v3h-7zM9 13h.01M12 13h.01M15 13h.01M9 16.5h.01M12 16.5h.01M15 16.5h.01',
+  back: 'M21 5H9l-6 7 6 7h12zM16 9.5l-5 5M11 9.5l5 5',
   camera: 'M4 8h3l2-3h6l2 3h3v11H4zM12 16.5a3.5 3.5 0 100-7 3.5 3.5 0 000 7z',
   image: 'M4 5h16v14H4zM4 15l4.5-4.5 4 4 3-3L20 16M9 9.5h.01',
   up: 'M12 19V5M5 12l7-7 7 7', down: 'M12 5v14M5 12l7 7 7-7',
