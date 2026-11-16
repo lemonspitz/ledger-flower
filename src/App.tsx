@@ -70,30 +70,40 @@ export default function App() {
 
   const go = useCallback((v: string, f?: Partial<TxFilter>) => { if (f) setFilter({ ...NO_FILTER, ...f }); setView(v); window.scrollTo(0, 0); document.querySelector('main')?.scrollTo(0, 0); }, []);
   const props: ViewProps = { m, month, setMonth, open: setDialog, go };
-  const mobileMore = ['goals', 'accounts', 'settings'].includes(view);
   const [sheet, setSheet] = useState(false);
+  // One-time hint so people discover the pull-up menu; gone for good once it has been opened.
+  const [hint, setHint] = useState(() => { try { return !localStorage.getItem('ll.pullHintSeen'); } catch { return false; } });
+  useEffect(() => { if (sheet && hint) { setHint(false); try { localStorage.setItem('ll.pullHintSeen', '1'); } catch { /* storage unavailable */ } } }, [sheet, hint]);
   // Pull-up dock: how far (px) the menu is being dragged up from the dock, or null when not dragging.
   const [pull, setPull] = useState<number | null>(null);
-  const drag = useRef<{ y: number; id: number; moved: boolean } | null>(null);
-  const PULL_OPEN = 90;
-  const dockDown = (e: React.PointerEvent) => { if (!sheet) drag.current = { y: e.clientY, id: e.pointerId, moved: false }; };
-  const dockMove = (e: React.PointerEvent) => {
-    const d = drag.current;
-    if (!d || d.id !== e.pointerId) return;
-    const dy = d.y - e.clientY;
-    if (!d.moved && dy > 8) { d.moved = true; (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId); }
-    if (d.moved) setPull(Math.max(0, dy));
-  };
-  const dockUp = () => {
-    const d = drag.current;
-    drag.current = null;
-    if (!d?.moved) return;
-    suppressClick.current = true;
-    setTimeout(() => { suppressClick.current = false; }, 50);
-    if ((pull ?? 0) > PULL_OPEN) { setSheet(true); setPull(null); }
-    else { setPull(0); setTimeout(() => setPull(null), 200); }
-  };
   const suppressClick = useRef(false);
+  const PULL_OPEN = 90;
+  // Once a press starts on the dock, follow that finger anywhere on screen (a quick swipe leaves the dock immediately).
+  const dockDown = (e: React.PointerEvent) => {
+    if (sheet) return;
+    const id = e.pointerId, y0 = e.clientY;
+    let moved = false, dy = 0;
+    const move = (ev: PointerEvent) => {
+      if (ev.pointerId !== id) return;
+      dy = Math.max(0, y0 - ev.clientY);
+      if (!moved && dy > 8) moved = true;
+      if (moved) { ev.preventDefault(); setPull(dy); }
+    };
+    const up = (ev: PointerEvent) => {
+      if (ev.pointerId !== id) return;
+      window.removeEventListener('pointermove', move);
+      window.removeEventListener('pointerup', up);
+      window.removeEventListener('pointercancel', up);
+      if (!moved) return;
+      suppressClick.current = true;
+      setTimeout(() => { suppressClick.current = false; }, 50);
+      if (dy > PULL_OPEN && ev.type === 'pointerup') { setSheet(true); setPull(null); }
+      else { setPull(0); setTimeout(() => setPull(null), 200); }
+    };
+    window.addEventListener('pointermove', move, { passive: false });
+    window.addEventListener('pointerup', up);
+    window.addEventListener('pointercancel', up);
+  };
 
   return (
     <div className="app">
@@ -114,12 +124,13 @@ export default function App() {
         {view === 'accounts' && <Accounts {...props} />}
         {view === 'settings' && <SettingsView m={m} prefs={prefs} setPrefs={setPrefs} open={setDialog} />}
       </main>
-      <nav className="tabs" onPointerDown={dockDown} onPointerMove={dockMove} onPointerUp={dockUp} onPointerCancel={dockUp}
+      <nav className="tabs" onPointerDown={dockDown}
         onClickCapture={(e) => { if (suppressClick.current) { e.stopPropagation(); e.preventDefault(); } }}>
         {NAV.slice(0, 2).map(([id, label, icon]) => <button key={id} className={view === id ? 'on' : ''} onClick={() => go(id)}><Icon name={icon} />{label}</button>)}
         <button className="fab" onClick={() => setDialog({ k: 'tx' })} aria-label="Add transaction"><Icon name="plus" size={26} /></button>
         {NAV.slice(2, 4).map(([id, label, icon]) => <button key={id} className={view === id ? 'on' : ''} onClick={() => go(id)}><Icon name={icon} />{label}</button>)}
-        <button className={mobileMore || sheet ? 'on' : ''} onClick={() => setSheet(!sheet)} aria-expanded={sheet} aria-haspopup="menu"><Icon name="more" />More</button>
+        <button className="sr-only" onClick={() => setSheet(!sheet)} aria-expanded={sheet} aria-haspopup="menu">All sections</button>
+        {hint && <span className="dock-hint" aria-hidden><Icon name="up" size={13} />Drag up for more</span>}
       </nav>
       {(sheet || pull !== null) && <MoreSheet key="menu" view={view} pull={sheet ? undefined : pull ?? 0} animateIn={pull === null && sheet}
         onPick={(id) => { setSheet(false); setPull(null); go(id); }} onClose={() => { setSheet(false); setPull(null); }} />}
