@@ -339,3 +339,5 @@ textarea.plain { font-family: inherit; font-size: inherit; }
 .about img { border-radius: 13px; flex: none; }
 .about p { margin: 2px 0; color: var(--ink-2); }
 .about a { color: var(--accent-ink); font-weight: 600; }
+.scan-text summary { font-size: 13px; color: var(--accent-ink); cursor: pointer; font-weight: 550; }
+.scan-text pre { margin: 6px 0 0; max-height: 220px; overflow: auto; font: 12px/1.45 ui-monospace, monospace; white-space: pre-wrap; background: var(--wash); padding: 8px 10px; border-radius: 8px; }

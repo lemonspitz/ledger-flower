@@ -54,7 +54,7 @@ function TxForm({ m, tx, preset, close }: { m: Model; tx?: Tx; preset?: Partial<
   const [sub, setSub] = useState(init.sub ?? '');
   const [newSub, setNewSub] = useState<string | null>(null);
   const [note, setNote] = useState(init.note ?? '');
-  const [scan, setScan] = useState<{ busy?: boolean; progress?: number; error?: string; done?: string }>({});
+  const [scan, setScan] = useState<{ busy?: boolean; progress?: number; error?: string; done?: string; text?: string }>({});
   const [items, setItems] = useState<ItemRow[]>([]);
   const [split, setSplit] = useState(false);
   const fileRef = useRef<HTMLInputElement>(null);
@@ -73,7 +73,7 @@ function TxForm({ m, tx, preset, close }: { m: Model; tx?: Tx; preset?: Partial<
     setScan({ busy: true, progress: 0 });
     try {
       const r = await scanReceipt(file, m.categories, (p) => setScan({ busy: true, progress: p }));
-      if (!r.total && !r.items.length) { setScan({ error: 'Couldn’t find any amounts in that picture. Try a sharper, well-lit photo taken straight on, or type the details in.' }); return; }
+      if (!r.total && !r.items.length) { setScan({ text: r.text, error: r.text.trim() ? 'Text was found, but no prices could be picked out of it. Check the text below, then type the details in, or try a flatter, closer photo.' : 'No text could be read. Try a sharper, well-lit photo taken straight on, with the receipt filling the frame.' }); return; }
       setType('expense');
       setAmount((r.total / 100).toFixed(2));
       setDate(r.date);
@@ -84,10 +84,10 @@ function TxForm({ m, tx, preset, close }: { m: Model; tx?: Tx; preset?: Partial<
       const gap = r.total - sum;
       // Keep itemized entries equal to what was actually paid: carry tax and fees as their own line.
       const taxLine = rows.length > 0 && gap > 1 && gap <= sum * 0.35;
-      if (taxLine) rows.push({ name: 'Tax & fees', amt: (gap / 100).toFixed(2), sub: '' });
+      if (taxLine) rows.push({ name: 'Tax or unread lines', amt: (gap / 100).toFixed(2), sub: '' });
       setItems(rows);
       setSplit(false);
-      setScan({ done: `Read ${r.merchant ? `“${r.merchant}”` : 'the receipt'}: total ${m.fmt(r.total)}${r.items.length ? `, ${r.items.length} item${r.items.length === 1 ? '' : 's'}` : ''}.${taxLine ? ` Items add up to ${m.fmt(sum)}, so ${m.fmt(gap)} is listed as tax & fees.` : r.items.length && Math.abs(gap) > 1 ? ` Items add up to ${m.fmt(sum)} — a line may have been missed or misread.` : ''} Please check before saving.` });
+      setScan({ text: r.text, done: `Read ${r.merchant ? `“${r.merchant}”` : 'the receipt'}: total ${m.fmt(r.total)}${r.items.length ? `, ${r.items.length} item${r.items.length === 1 ? '' : 's'}` : ''}.${taxLine ? ` Items add up to ${m.fmt(sum)}, so the other ${m.fmt(gap)} is listed as “Tax or unread lines”.` : r.items.length && Math.abs(gap) > 1 ? ` Items add up to ${m.fmt(sum)} — a line may have been missed or misread.` : ''} Please check before saving.` });
     } catch (e) {
       console.error('receipt scan', e);
       setScan({ error: `The receipt couldn’t be read (${e instanceof Error ? e.message : String(e)}). You can still type the details in.` });
@@ -143,6 +143,12 @@ function TxForm({ m, tx, preset, close }: { m: Model; tx?: Tx; preset?: Partial<
             )}
             {scan.done && <p className="scan-note ok"><Icon name="check" size={14} />{scan.done}</p>}
             {scan.error && <p className="scan-note bad"><Icon name="warn" size={14} />{scan.error}</p>}
+            {scan.text !== undefined && !scan.busy && (
+              <details className="scan-text">
+                <summary>Show the text read from the photo</summary>
+                <pre>{scan.text.trim() || '(nothing)'}</pre>
+              </details>
+            )}
           </div>
         )}
         <div className="amount-in">
