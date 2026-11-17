@@ -1,7 +1,8 @@
 // Bill calculator and splitter. All money is in hundredths (cents/sen), like the rest of the app.
 
 export interface BillItem { name: string; unit: number; qty: number; who: string[] } // who empty = shared by everyone
-export interface BillCharges { service: number; tax: number; taxOnService: boolean; discount: number } // percents, discount in hundredths
+// service/tax are percents; serviceAmt/taxAmt (hundredths), when given, are used as printed instead.
+export interface BillCharges { service: number; tax: number; taxOnService: boolean; discount: number; serviceAmt?: number; taxAmt?: number }
 export interface PersonShare {
   key: string; lines: { name: string; amount: number; sharedBy: number }[];
   subtotal: number; discount: number; service: number; tax: number; total: number;
@@ -40,8 +41,8 @@ export function computeBill(items: BillItem[], people: string[], ch: BillCharges
   const subtotal = subs.reduce((a, b) => a + b, 0);
   const discount = Math.min(Math.max(0, Math.round(ch.discount)), subtotal);
   const base = subtotal - discount;
-  const service = Math.round((base * (ch.service || 0)) / 100);
-  const tax = Math.round(((base + (ch.taxOnService ? service : 0)) * (ch.tax || 0)) / 100);
+  const service = ch.serviceAmt ?? Math.round((base * (ch.service || 0)) / 100);
+  const tax = ch.taxAmt ?? Math.round(((base + (ch.taxOnService ? service : 0)) * (ch.tax || 0)) / 100);
   const total = base + service + tax;
   const dA = alloc(discount, subs), sA = alloc(service, subs), tA = alloc(tax, subs);
   return {
@@ -64,4 +65,16 @@ export function ratesFromAmounts(subtotal: number, service: number, tax: number,
   const a = (tax / (subtotal + service)) * 100, b = (tax / subtotal) * 100;
   const off = (x: number) => Math.abs(x - Math.round(x * 2) / 2);
   return off(a) <= off(b) || !service ? { service: svc, tax: round(a), taxOnService: true } : { service: svc, tax: round(b), taxOnService: false };
+}
+
+/** The rates behind printed service and tax amounts: service against the subtotal, tax against whichever base
+ *  (subtotal, or subtotal + service) gives the rounder rate — that is how the restaurant must have charged it. */
+export function ratesOf(base: number, serviceAmt: number, taxAmt: number, printedTax?: number) {
+  const service = base ? (serviceAmt / base) * 100 : 0;
+  if (!taxAmt || !base) return { service, tax: 0, taxOnService: true };
+  const a = (taxAmt / (base + serviceAmt)) * 100, b = (taxAmt / base) * 100;
+  // A rate printed on the receipt ("Tax 8.875%") settles which base was used.
+  if (printedTax) return Math.abs(a - printedTax) <= Math.abs(b - printedTax) ? { service, tax: a, taxOnService: true } : { service, tax: b, taxOnService: false };
+  const off = (x: number) => Math.abs(x - Math.round(x * 2) / 2);
+  return off(a) <= off(b) || !serviceAmt ? { service, tax: a, taxOnService: true } : { service, tax: b, taxOnService: false };
 }

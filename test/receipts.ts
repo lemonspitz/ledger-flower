@@ -1,5 +1,5 @@
 // Receipt texts as the OCR returns them, with what the parser should find (amounts in hundredths).
-export interface Expect { items: [string, number, number][]; total: number; discount?: number; service?: number; tax?: number; servicePct?: number; taxPct?: number }
+export interface Expect { looseNames?: boolean; subtotal?: number; items: [string, number, number][]; total: number; discount?: number; service?: number; tax?: number; servicePct?: number; taxPct?: number }
 export const CASES: { name: string; text: string; expect: Expect }[] = [
   {
     name: 'Indonesian café, item name then "qty x price  total" line, discount, service + PB1',
@@ -126,5 +126,128 @@ Es Kopi x2                 36.000
 Cheeseburger 2 x 12.000
 Total                     182.000`,
     expect: { items: [['Strawberry Jam Toast', 1, 2500000], ['Teh Botol 350ml', 1, 800000], ['Pizza 12 inch', 1, 8900000], ['Es Kopi', 2, 1800000], ['Cheeseburger', 2, 1200000]], total: 18200000 },
+  },
+  // ── A real receipt photographed by a user (Sedjuk Bakmi & Kopi), as read by the app's OCR ──
+  {
+    name: 'Real photo, cropped & cleaned: misread @ (€, 8), "1%" for 1x, one total misread (23.000 for 33.000), TAX word lost, no grand total',
+    text: `§                 BAKMI & KOP!       £17             A
+Sedjuk Bakmi & Kopi = Posbloc           Bobet
+Date        . 14-10-2026 20:16                     ZA
+Time In     + 14-10-2026 17:19                     go
+Info        + guest 081200000000                    3
+Table     : 15
+Purpose + DINE IN              |         NA
+Pax      +3                    :       | I-A
+Cashier    . KASIR SATU                   '
+Bakso Kuah                                 -
+1X   @35.000                       35.000
+Cincau Sedjuk
+2X   €27.000                       54.000   h
+Bakmi Ayam Oven Komplit                             \\
+1%   @55.000                       55,000     My,
+Kopi Sedjuk                                            NN
+1x 829.000                       29,000      A
+Nasi Putih
+1x  @8.000                              8.000
+Hot Lovely Ale
+1x 833.000                            23.000
+| 7 items
+|                        _ Subtotal :      214.000
+|                    Service Charge :       10.700
+™       22.470
+ON badll: mam #2`,
+    expect: { items: [['Bakso Kuah', 1, 3500000], ['Cincau Sedjuk', 2, 2700000], ['Bakmi Ayam Oven Komplit', 1, 5500000], ['Kopi Sedjuk', 1, 2900000], ['Nasi Putih', 1, 800000], ['Hot Lovely Ale', 1, 3300000]], subtotal: 21400000, total: 24717000, service: 1070000, tax: 2247000 },
+  },
+  {
+    name: 'Real photo, cropped & cleaned, column mode: some line totals missing, TAX without amount',
+    text: `PACES BAKMI & dj       ux
+Sedjuk Bakmi & Kopi ~ Poshloc
+Date        1 14-10-2026 20:16
+Time In     + 14-10-2026 17:19
+Info        : guest 081200000000
+: 15
+Purpose    k DINE IN
+{ Pax        :
+§ Cashier     . KASIR SATU
+Bakso Kuah
+1x @35.000
+Cincau Sedjuk
+2x @27.000
+Bakmi Ayam Oven Komplit
+1x  @55.000
+Kopi Sedjuk
+29.000
+1x 829.000
+Nasi Putih
+1x ~~ @8.000                              8.000
+Hot Lovely Ale
+1x 33.000                            33.000
+7 items
+Subtotal :      214.000
+Service Charge :       10.700
+TAX ¢       22.470
+dtl: am #2`,
+    expect: { items: [['Bakso Kuah', 1, 3500000], ['Cincau Sedjuk', 2, 2700000], ['Bakmi Ayam Oven Komplit', 1, 5500000], ['Kopi Sedjuk', 1, 2900000], ['Nasi Putih', 1, 800000], ['Hot Lovely Ale', 1, 3300000]], subtotal: 21400000, total: 24717000, service: 1070000, tax: 2247000 },
+  },
+  {
+    name: 'Real photo, uncleaned: tablecloth junk at line ends, "@27.000" read as "627.000", lost letters in names',
+    text: `@Sedjuk |
+BAKMI & KOPI       £21               ¢
+4          sedjuk Bakmi & Kopi - Posbloc
+   Date      : 14-10-2026 20:16
+SM Time In    + 14-10-2026 17:13
+a Info    : guest 081200000000
+BE Table    Lal
+| Purpose    : DINE IN                          &
+E Pax      4.3)                            & 4
+BY Cashier  : KASIR SATU                 Fe
+Bakso Kuah                                    a
+1x ~~ @35.000                     35.000   FE -
+| Cincau Sedjuk                                  =
+2x 627.000                     54.000 W
+Bakmi Ayam Oven Komplit                            gE
+1x  @55.000                      55.000 TR
+Kopi Sedjuk                              CN
+29.000                                                        29,000 [.
+i Putih                           4
+68.000                       8.000     FE.
+Lovely Ale                                   =
+% 33.000                      93,000   Ae
+|           Subtotal :    214.000 RO
+5        Service Charge :      10.700    We
+a              TAX ©     22.470     E
+BE Grad Total: 47.1M`,
+    expect: { looseNames: true, items: [['Bakso Kuah', 1, 3500000], ['Cincau Sedjuk', 2, 2700000], ['Bakmi Ayam Oven Komplit', 1, 5500000], ['Kopi Sedjuk', 1, 2900000], ['Nasi Putih', 1, 800000], ['Hot Lovely Ale', 1, 3300000]], subtotal: 21400000, total: 24717000, service: 1070000, tax: 2247000 },
+  },
+  {
+    name: 'Real photo, final in-app reading: junk before a name, a quantity line garbled to "{x eo"',
+    text: `- | &@Se djuk ¥
+AN                      BAKMI & KOPI       vay             A
+Sedjuk Bakmi & opi - Posbloc           gm
+Date       : 14-10-2026 20:18                 =
+    Time In    : 14-10-2026 17:19                  on     |
+Info       : guest 081200000000                  |
+“4 Table     1 15
+{Purpose : DINE IN       NA
+{Pax      +3                 :   A
+Cashier    : KASIR SATU                        oo
+NN! Bakso Kuah                                         Lo
+'} 1x 635.000                  35.000 § =
+Cincau Sedjuk                                 B
+, {x eo                      54.000       -
+Bakmi Ayam Oven Komplit                                  -
+1X         @55,000                                                             55,000
+Kopi Sedjuk
+1x @29.000                                                              29.000
+Nasi Putih
+1x  @8.000                           8.000
+. | Hot Lovely Ale                     :               '
+«4d 1x 833.000                                                               33.000
+)   7 items
+                        _ Subtotal :      214.000
+Service Charge :       10.700
+™       22.470   |
+|       rd: wm #2`,
+    expect: { items: [['Bakso Kuah', 1, 3500000], ['Cincau Sedjuk', 1, 5400000], ['Bakmi Ayam Oven Komplit', 1, 5500000], ['Kopi Sedjuk', 1, 2900000], ['Nasi Putih', 1, 800000], ['Hot Lovely Ale', 1, 3300000]], subtotal: 21400000, total: 24717000, service: 1070000, tax: 2247000 },
   },
 ];

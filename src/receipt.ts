@@ -4,7 +4,7 @@
 import { today, ymd, type Category } from './store';
 
 export interface ReceiptItem { name: string; amount: number; qty?: number; unit?: number; sub?: string }
-export interface Receipt { merchant: string; date: string; total: number; items: ReceiptItem[]; cat?: string; text: string; pay?: PaidWith; charges?: { service: number; tax: number; discount: number; servicePct?: number; taxPct?: number } }
+export interface Receipt { merchant: string; date: string; total: number; totalPrinted?: boolean; subtotal?: number; items: ReceiptItem[]; cat?: string; text: string; pay?: PaidWith; charges?: { service: number; tax: number; discount: number; servicePct?: number; taxPct?: number } }
 export interface PaidWith { kind: 'cash' | 'card' | 'qr'; name?: string; last4?: string }
 
 const QR_BRANDS: [RegExp, string][] = [
@@ -122,7 +122,7 @@ export function guessSub(name: string, cat?: Category) {
 // dates and times, loyalty points, column headings, greetings.
 const NOISE = new RegExp([
   String.raw`\b(order|pesanan)\s*(no|#|:|\d|type)`, String.raw`\b(invoice|inv|receipt|struk|nota|bill\s*no|no\.?\s*(order|struk|nota|bill|trx|transaksi|meja|antrian))\b`,
-  String.raw`\btable\s*(no|#|:|\d)`, String.raw`\b(meja|pax|guests?|tamu|covers?)\b`,
+  String.raw`\btable\s*(no|#|:|\d)`, String.raw`\b(meja|pax|guests?|tamu|covers?|info|purpose|customer|pelanggan)\b`, String.raw`\btime\s*in\b`, String.raw`^\W*\d+\s+items?\b`,
   String.raw`\b(cashier|kasir|server|waiter|waitress|pelayan|operator|staff)\b`,
   String.raw`\b(telp?|phone|hp|wa|whatsapp|fax|npwp|nib|wifi|password|email)\b`,
   String.raw`\b(poin|points?|kode|code|queue|antrian|ref|trx|transaksi|terminal|tid|mid|approval|appr|auth|batch|trace)\b`,
@@ -131,66 +131,98 @@ const NOISE = new RegExp([
 ].join('|'), 'i');
 const DISCOUNT = /\b(disc(ount)?|diskon|promo|voucher|potongan|hemat|savings?|coupon|kupon)\b/i;
 const SEP = /^[xX×@=]$/;
+const JUNK = /^[^A-Za-z0-9]+$/; // "~~", "|", "=", "[." — specks from the table or paper edge
+/** Short garbage the OCR adds at line ends from the background ("FE", "Ae", "My,", "[."). */
+const TAIL_JUNK = /^(?:[^A-Za-z0-9]+|[A-Za-z]{1,3}[^A-Za-z0-9]*|[^A-Za-z0-9]*[A-Za-z]{1,3})$/;
 const CUR_TOK = new RegExp(String.raw`^(?:${CUR})$`, 'i');
-const NUM_TOK = new RegExp(String.raw`^\(?(?:(${CUR})\.?)?(-|−)?(?:(${CUR})\.?)?(${NUMBER})(${CUR})?\)?$`, 'i');
+const NUM_TOK = new RegExp(String.raw`^\(?([@©])?(?:(${CUR})\.?)?(-|−)?(?:(${CUR})\.?)?(${NUMBER})(${CUR})?\)?[.,;:]?$`, 'i');
 
-interface Tok { value: number; raw: string; money: boolean; qty?: number; neg: boolean; sepBefore: boolean }
-/** The numbers at the end of a line (right to left: total, unit price, quantity) and the words before them. */
+interface Tok { value: number; raw: string; money: boolean; qty?: number; neg: boolean; each: boolean }
+/** The numbers at the end of a line (right to left: total, price each, quantity) and the words before them. */
 function tail(line: string, decimalMode: boolean) {
   const words = line.trim().split(/\s+/);
+  const digitBefore = (k: number) => words.slice(0, k).some((w) => /\d/.test(w));
+  while (words.length > 1 && TAIL_JUNK.test(words[words.length - 1]) && !/\d/.test(words[words.length - 1]) && digitBefore(words.length - 1)) words.pop();
   const nums: Tok[] = [];
-  let sep = false;
-  // ignore tax flags and currency codes printed after the price ("3.49 F", "10,10 €", "25.000 IDR")
-  while (words.length && !nums.length && (/^([A-Za-z]{1,2}|\*+|[€$£¥])$/.test(words[words.length - 1]) || CUR_TOK.test(words[words.length - 1])) && words.length > 1 && /\d/.test(words[words.length - 2])) words.pop();
-  while (words.length && nums.length < 3) {
+  while (words.length && nums.length < 4) {
     const w = words[words.length - 1];
-    if (SEP.test(w)) { sep = true; words.pop(); continue; }
-    const q = w.match(/^(?:(\d{1,2})([xX×@])|[xX×@](\d{1,2}))$/);
+    if (SEP.test(w)) { if (nums[0]) nums[0].each = true; words.pop(); continue; } // "2 x 20.000": the price after x is per item
+    if (JUNK.test(w) && nums.length) { words.pop(); continue; }
+    if (CUR_TOK.test(w) && nums.length) { words.pop(); continue; } // "Rp 17.500" split in two
+    const q = w.match(/^(?:(\d{1,2})([xX×@%»])|[xX×@](\d{1,2}))$/); // 2x · 1@ · 1% (OCR for 1x) · x2
     if (q) {
-      if (q[2] === '@' && nums[0]) nums[0].sepBefore = true; // "1@ 22.000": price each follows
-      nums.unshift({ value: 0, raw: w, money: false, qty: Number(q[1] ?? q[3]), neg: false, sepBefore: false }); words.pop(); continue;
+      if (q[2] === '@' && nums[0]) nums[0].each = true;
+      nums.unshift({ value: 0, raw: w, money: false, qty: Number(q[1] ?? q[3]), neg: false, each: false });
+      words.pop(); continue;
     }
-    if (CUR_TOK.test(w) && nums.length) { words.pop(); continue; } // "Rp 17.500" split into two words
     const m = w.match(NUM_TOK);
     if (!m) break;
-    const raw = m[4];
+    const raw = m[5];
     const grouped = /^\d{1,3}(?:[.,'’]\d{3})+/.test(raw), decimals = /[.,]\d{2}$/.test(raw) && !/[.,]\d{3}$/.test(raw);
     const plain = /^\d+$/.test(raw);
-    const cur = !!(m[1] || m[3] || m[5]);
-    const value = toMinor(raw);
+    const cur = !!(m[2] || m[4] || m[6]);
     const money = decimalMode ? decimals : grouped || cur || (plain && !raw.startsWith('0') && raw.length >= 3 && raw.length <= 7);
     const qty = plain && !raw.startsWith('0') && Number(raw) >= 1 && Number(raw) <= 99 ? Number(raw) : undefined;
     if (!money && qty === undefined) break;
-    if (nums[0]) nums[0].sepBefore = sep;
-    nums.unshift({ value, raw, money, qty: money ? undefined : qty, neg: !!m[2] || /^\(.*\)$/.test(w), sepBefore: false });
-    sep = false;
+    nums.unshift({ value: toMinor(raw), raw, money, qty: money ? undefined : qty, neg: !!m[3] || /^\(.*\)$/.test(w), each: !!m[1] });
     words.pop();
   }
-  if (nums[0] && sep) nums[0].sepBefore = true;
   return { label: words.join(' '), nums };
 }
 
-interface Line { label: string; qty: number; unit: number; total: number; neg: boolean }
-/** Work out quantity, unit price and line total from "2 x 20.000 40.000", "2 @ 18.500 37.000", "2 Cheeseburger 12.50 25.00", "2x Nasi Goreng 50.000"… */
+/** "@27.000" is often read as "627.000", "€27.000" or "827.000": the same number without its first digit. */
+const repaired = (t: Tok) => (/^[68]\d{1,2}[.,']\d{3}$/.test(t.raw) ? toMinor(t.raw.slice(1)) : undefined);
+
+interface Line { label: string; qty: number; unit: number; total: number; neg: boolean; alts: number[]; hasTotal: boolean }
+/** Quantity, price each and line total from "2 x 20.000 40.000", "1x @35.000", "2 @ 18.500 37.000", "2 Cheeseburger 12.50 25.00", "2x Nasi Goreng 50.000"… */
 function readLine(line: string, decimalMode: boolean): Line | null {
   const { label, nums } = tail(line, decimalMode);
   const money = nums.filter((n) => n.money);
-  if (!money.length || !nums[nums.length - 1].money) return null;
+  if (!money.length) return null;
   let qty = nums.find((n) => n.qty !== undefined)?.qty;
-  const last = money[money.length - 1];
-  let total = last.value, unit = money.length > 1 ? money[money.length - 2].value : 0;
-  // "2 x 12.000" with nothing after it is a price each; "6x 2,40" / "x2 36.000" is the line total.
-  if (money.length === 1 && qty && last.sepBefore) { unit = last.value; total = unit * qty; }
   let name = label.replace(/[\s:.=-]+$/, '');
   const lead = name.match(/^(\d{1,2})\s*[xX×]?\s+(?=\D)|^(\d{1,2})[xX×](?=\D)/);
   if (lead && !qty) { qty = Number(lead[1] ?? lead[2]); name = name.slice(lead[0].length); }
   const trail = name.match(/\s+[xX×](\d{1,2})$|\s+(\d{1,2})[xX×]$/);
   if (trail && !qty) { qty = Number(trail[1] ?? trail[2]); name = name.slice(0, -trail[0].length); }
-  if (unit && !qty) { const q = total / unit; if (Number.isInteger(q) && q >= 1 && q <= 99) qty = q; else unit = 0; }
+  const last = money[money.length - 1];
+  const totalTok = money.length >= 2 || !last.each ? last : undefined;
+  const unitTok = money.length >= 2 ? money[money.length - 2] : last.each ? last : undefined;
+  // Price each and line total decide the quantity when the printed one is missing or misread ("1@" read as "10").
+  if (unitTok && totalTok) { const q = totalTok.value / unitTok.value; if (Number.isInteger(q) && q >= 1 && q <= 99 && (!qty || qty * unitTok.value !== totalTok.value)) qty = q; }
   qty = qty || 1;
-  if (!unit) unit = total % qty === 0 ? total / qty : 0;
-  if (!unit) { unit = total; qty = 1; }
-  return { label: name, qty, unit, total, neg: money.some((n) => n.neg) };
+  const alts: number[] = [];
+  if (totalTok) alts.push(totalTok.value);
+  if (unitTok) { alts.push(unitTok.value * qty); const r = repaired(unitTok); if (r) alts.push(r * qty); }
+  // The total column is the most reliable reading; other readings stay as alternatives for the subtotal check.
+  const total = totalTok ? totalTok.value : alts[0];
+  return { label: name, qty, unit: Math.round(total / qty), total, neg: money.some((n) => n.neg), alts: [...new Set(alts)], hasTotal: !!totalTok };
+}
+
+/** Strip OCR specks around a dish name: "| Cincau Sedjuk =", "Bakmi Ayam Oven Komplit gE", "i Putih". */
+function cleanName(raw: string) {
+  const t = raw.replace(/^[+\-•*]\s*/, '').replace(/^\d{4,}\s+/, '').split(/\s+/).filter(Boolean);
+  const real = (k: number) => t.filter((w, i) => i !== k && /[A-Za-zÀ-ÿ]{3,}/.test(w)).length > 0;
+  // "BY Bakso Kuah": two capitals glued in front of a normally written name are a speck; "ES TEH MANIS" is left alone.
+  while (t.length > 2 && /^[A-Z]{2}$/.test(t[0]) && /^[A-Z][a-z]/.test(t[1])) t.shift();
+  while (t.length > 1 && (JUNK.test(t[0]) || (/^[A-Za-z0-9]$/.test(t[0]) || /^[^A-Za-z0-9]*[A-Za-z0-9]{0,2}[^A-Za-z0-9]+$/.test(t[0])) && real(0))) t.shift();
+  const speck = (w: string) => /^[A-Za-z]{1,2}[^A-Za-z0-9]*$/.test(w) || /^\d$/.test(w) || (/^(?=.*\d)(?=.*[A-Za-z])[A-Za-z0-9]{2}$/.test(w) && !/^\d[lLgGkKmMxX]$/.test(w)); // keeps sizes like 2L
+  while (t.length > 1 && (JUNK.test(t[t.length - 1]) || speck(t[t.length - 1]) && real(t.length - 1))) t.pop();
+  return tidy(t.join(' '));
+}
+
+/** When the items don't add up to the printed subtotal, try other readings of one or two lines that make them match. */
+function reconcile(items: (ReceiptItem & { alts: number[] })[], subtotal: number) {
+  const sum = () => items.reduce((a, i) => a + i.amount, 0);
+  if (!subtotal || sum() === subtotal) return;
+  const choices = items.map((it, i) => it.alts.filter((v) => v !== it.amount).map((v) => [i, v] as const)).flat();
+  const apply = (fix: (readonly [number, number])[]) => fix.forEach(([i, v]) => { items[i].amount = v; items[i].unit = Math.round(v / (items[i].qty || 1)); });
+  const base = sum();
+  for (const c of choices) if (base - items[c[0]].amount + c[1] === subtotal) return apply([c]);
+  for (let a = 0; a < choices.length; a++) for (let b = a + 1; b < choices.length; b++) {
+    const [x, y] = [choices[a], choices[b]];
+    if (x[0] !== y[0] && base - items[x[0]].amount - items[y[0]].amount + x[1] + y[1] === subtotal) return apply([x, y]);
+  }
 }
 
 export function parseReceipt(text: string, cats: Category[]): Receipt {
@@ -209,6 +241,8 @@ export function parseReceipt(text: string, cats: Category[]): Receipt {
   const usable = (p: Price | null): p is Price => !!p && p.value !== 0 && (decimalMode ? p.decimals : p.value >= 100 || p.currency);
   const priceAt = (i: number) => (usable(prices[i]) ? prices[i] : null);
   const hasWords = (s: string) => (s.match(/[A-Za-zÀ-ÿ]/g) ?? []).length >= 2;
+  /** A dish name has at least one real word, not just OCR specks like "{x eo". */
+  const hasName = (s: string) => /[A-Za-zÀ-ÿ]{3,}/.test(s);
 
   let totalIdx = lines.length;
   const totalLines = lines.map((l, i) => i).filter((i) => TOTAL.test(lines[i]) && !NOT_TOTAL.test(lines[i]));
@@ -216,24 +250,36 @@ export function parseReceipt(text: string, cats: Category[]): Receipt {
   const subIdx = lines.findIndex((l) => /sub\s*-?\s*total/i.test(l));
   const end = subIdx >= 0 ? Math.min(subIdx, totalIdx) : totalIdx;
 
-  const items: ReceiptItem[] = [];
   const isOther = (l: string) => NOISE.test(l) || TOTAL.test(l) || SERVICE.test(l) || TAX.test(l) || PAID.test(l) || SKIP_ITEM.test(l) || DISCOUNT.test(l);
-  for (let i = 0; i < end; i++) {
+  // Menu lines start after the header block (date, table, cashier…), when there is one.
+  let begin = 0;
+  for (let i = 0; i < end; i++) if (NOISE.test(lines[i]) && i < end * 0.7) begin = i + 1;
+  const items: (ReceiptItem & { alts: number[] })[] = [];
+  let pending: string | null = null, lastAt = -2;
+  for (let i = begin; i < end; i++) {
     const l = lines[i];
-    if (isOther(l)) continue;
-    let r = readLine(l, decimalMode);
-    let name = r?.label ?? '';
-    // Two-line items: the name on one line, "2 x 20.000   40.000" on the next.
-    if (!r && hasWords(l) && i + 1 < end && !isOther(lines[i + 1])) {
-      const next = readLine(lines[i + 1], decimalMode);
-      if (next && !hasWords(next.label)) { r = next; name = l; i++; }
+    if (isOther(l)) { pending = null; continue; }
+    const r = readLine(l, decimalMode);
+    if (r && !hasName(r.label)) {
+      // A numbers-only line belongs to the dish named just above it.
+      if (pending) { items.push({ name: pending, amount: r.total, qty: r.qty, unit: r.unit, alts: r.alts }); pending = null; lastAt = i; }
+      else if (lastAt === i - 1 && items.length) {
+        const it = items[items.length - 1];
+        it.qty = r.qty;
+        it.alts = [...new Set([...it.alts, ...r.alts])];
+        if (r.hasTotal && !(it.alts.length > 1 && it.alts.includes(it.amount) && r.alts.includes(it.amount))) it.amount = r.alts.includes(it.amount) ? it.amount : r.total;
+        it.unit = Math.round(it.amount / (it.qty || 1));
+      }
+      continue;
     }
-    if (!r || r.neg || r.total <= 0) continue;
-    name = tidy(name.replace(/^[+\-•*]\s*/, '').replace(/^\d{4,}\s+/, ''));
-    if (!hasWords(name)) continue;
-    items.push({ name: name.slice(0, 60), amount: r.total, qty: r.qty, unit: r.unit });
+    if (r && r.total > 0 && !r.neg) { const name = cleanName(r.label); if (hasName(name)) { items.push({ name, amount: r.total, qty: r.qty, unit: r.unit, alts: r.alts }); lastAt = i; pending = null; continue; } }
+    if (!r && hasName(l)) { const name = cleanName(l); pending = hasName(name) ? name : null; }
   }
+  const subLine = subIdx >= 0 ? (priceAt(subIdx)?.value ?? readLine(lines[subIdx], decimalMode)?.total ?? 0) : 0;
+  reconcile(items, subLine);
+  for (const it of items) it.name = it.name.slice(0, 60);
   const sum = items.reduce((a, i) => a + i.amount, 0);
+  const subtotal = subLine || sum;
 
   // Service charge and tax lines, with the percentage when it is printed ("SERVICE 5%", "PB1 10%").
   const charges = { service: 0, tax: 0, discount: 0, servicePct: undefined as number | undefined, taxPct: undefined as number | undefined };
@@ -251,6 +297,15 @@ export function parseReceipt(text: string, cats: Category[]): Receipt {
     if (svc) { if (p && p.value > 0) charges.service += p.value; if (pct) charges.servicePct = Number(pct.replace(',', '.')); }
     else { if (p && p.value > 0) charges.tax += p.value; if (pct) charges.taxPct = Number(pct.replace(',', '.')); }
   }
+  // An amount on its own line after the service charge, whose label the OCR lost, is the tax.
+  if (subIdx >= 0 && charges.service && !charges.tax) {
+    for (let i = subIdx + 1; i < lines.length; i++) {
+      const l = lines[i];
+      if (TOTAL.test(l) || PAID.test(l) || SERVICE.test(l) || DISCOUNT.test(l)) continue;
+      const v = priceAt(i)?.value ?? readLine(l, decimalMode)?.total ?? 0;
+      if (v > 0 && !hasWords(l.replace(/[^A-Za-z\s]/g, ' ').split(/\s+/).filter((w) => w.length > 2).join(' ')) && v < subtotal * 0.3) { charges.tax = v; break; }
+    }
+  }
 
 
   let total = 0;
@@ -264,6 +319,10 @@ export function parseReceipt(text: string, cats: Category[]): Receipt {
     const pick = near.find((p) => p.currency) ?? near.filter((p) => p.value >= sum).sort((a, b) => a.value - b.value)[0];
     if (pick) { total = pick.value; break; }
   }
+  // No readable grand total (or one smaller than the subtotal): work it out from the parts.
+  const expected = subtotal - charges.discount + charges.service + charges.tax;
+  const totalPrinted = !!total && total >= subtotal;
+  if (!totalPrinted && subtotal) total = expected;
   if (!total) total = sum || Math.max(0, ...prices.filter((p, i): p is Price => usable(p) && !PAID.test(lines[i])).map((p) => p.value));
 
   // Category: by merchant name first, then by what most items look like.
@@ -276,7 +335,7 @@ export function parseReceipt(text: string, cats: Category[]): Receipt {
   }
   const c = cats.find((x) => x.id === cat);
   for (const i of items) i.sub = guessSub(i.name, c);
-  return { merchant, date: findDate(text) ?? today(), total, items, cat, text, pay: detectPayment(text), charges };
+  return { merchant, date: findDate(text) ?? today(), total, totalPrinted, subtotal: subLine || undefined, items: items.map(({ alts: _, ...i }) => i), cat, text, pay: detectPayment(text), charges };
 }
 
 /** Sub-category for the receipt as a whole, e.g. "Coffee" for a café. */
@@ -296,16 +355,81 @@ function rotate(src: HTMLCanvasElement, deg: 90 | 180 | 270) {
   return c;
 }
 
-async function prepare(file: Blob): Promise<HTMLCanvasElement> {
+/** Shrink big photos; returns the untouched copy (for cleaning) and a higher-contrast one. */
+async function prepare(file: Blob): Promise<{ raw: HTMLCanvasElement; contrast: HTMLCanvasElement }> {
   const bmp = await createImageBitmap(file);
   const scale = Math.min(1, 2200 / Math.max(bmp.width, bmp.height));
-  const canvas = document.createElement('canvas');
-  canvas.width = Math.round(bmp.width * scale); canvas.height = Math.round(bmp.height * scale);
-  const ctx = canvas.getContext('2d')!;
-  ctx.filter = 'grayscale(1) contrast(1.35)';
-  ctx.drawImage(bmp, 0, 0, canvas.width, canvas.height);
+  const make = (filter: string) => {
+    const c = document.createElement('canvas');
+    c.width = Math.round(bmp.width * scale); c.height = Math.round(bmp.height * scale);
+    const ctx = c.getContext('2d')!;
+    ctx.filter = filter; ctx.imageSmoothingQuality = 'high';
+    ctx.drawImage(bmp, 0, 0, c.width, c.height);
+    return c;
+  };
+  const out = { raw: make('none'), contrast: make('grayscale(1) contrast(1.35)') };
   bmp.close();
-  return canvas;
+  return out;
+}
+
+/**
+ * A cleaner copy for reading text: crop to the receipt paper (the largest bright area, so the table, hands and
+ * patterned cloth around it are dropped), then black-and-white with a local threshold so shadows and curl don't
+ * swallow the text.
+ */
+function cleanForOcr(src: HTMLCanvasElement): HTMLCanvasElement {
+  const W = src.width, H = src.height;
+  const px = src.getContext('2d')!.getImageData(0, 0, W, H).data;
+  const gray = new Float32Array(W * H);
+  for (let i = 0; i < W * H; i++) gray[i] = 0.299 * px[i * 4] + 0.587 * px[i * 4 + 1] + 0.114 * px[i * 4 + 2];
+
+  // 1. Find the paper on a small copy: Otsu brightness split, then the largest bright connected area.
+  const sw = 150, sh = Math.max(1, Math.round((H * sw) / W)), small = new Float32Array(sw * sh);
+  for (let y = 0; y < sh; y++) for (let x = 0; x < sw; x++) small[y * sw + x] = gray[Math.min(H - 1, Math.floor(((y + 0.5) * H) / sh)) * W + Math.min(W - 1, Math.floor(((x + 0.5) * W) / sw))];
+  const hist = new Array(256).fill(0); for (const v of small) hist[v | 0]++;
+  let best = -1, t = 128, w0 = 0, s0 = 0; const total = small.length, sAll = hist.reduce((a, c, i) => a + c * i, 0);
+  for (let i = 0; i < 256; i++) { w0 += hist[i]; s0 += hist[i] * i; const w1 = total - w0; if (!w0 || !w1) continue; const v = w0 * w1 * (s0 / w0 - (sAll - s0) / w1) ** 2; if (v > best) { best = v; t = i; } }
+  const seen = new Uint8Array(sw * sh); let box = { x0: 0, y0: 0, x1: sw, y1: sh }, bestN = 0;
+  for (let k = 0; k < sw * sh; k++) {
+    if (seen[k] || small[k] <= t) continue;
+    const stack = [k]; seen[k] = 1; let n = 0, x0 = sw, y0 = sh, x1 = 0, y1 = 0;
+    while (stack.length) {
+      const c = stack.pop()!, cx = c % sw, cy = (c / sw) | 0; n++;
+      x0 = Math.min(x0, cx); x1 = Math.max(x1, cx + 1); y0 = Math.min(y0, cy); y1 = Math.max(y1, cy + 1);
+      for (const nb of [cx > 0 ? c - 1 : -1, cx < sw - 1 ? c + 1 : -1, cy > 0 ? c - sw : -1, cy < sh - 1 ? c + sw : -1])
+        if (nb >= 0 && !seen[nb] && small[nb] > t) { seen[nb] = 1; stack.push(nb); }
+    }
+    if (n > bestN) { bestN = n; box = { x0, y0, x1, y1 }; }
+  }
+  // Only crop when the bright area is a sensible receipt-sized part of the photo.
+  const useCrop = bestN > total * 0.08;
+  const cx0 = useCrop ? Math.max(0, Math.floor((box.x0 * W) / sw) - 8) : 0, cy0 = useCrop ? Math.max(0, Math.floor((box.y0 * H) / sh) - 8) : 0;
+  const cx1 = useCrop ? Math.min(W, Math.ceil((box.x1 * W) / sw) + 8) : W, cy1 = useCrop ? Math.min(H, Math.ceil((box.y1 * H) / sh) + 8) : H;
+  // 2. Enlarge small receipts: the text reader needs letters around 30 px tall, and thresholding thins small text.
+  const f = Math.min(3, Math.max(1, 1300 / (cx1 - cx0)));
+  const w = Math.round((cx1 - cx0) * f), h = Math.round((cy1 - cy0) * f);
+  const up = document.createElement('canvas'); up.width = w; up.height = h;
+  const uctx = up.getContext('2d')!; uctx.imageSmoothingQuality = 'high';
+  uctx.drawImage(src, cx0, cy0, cx1 - cx0, cy1 - cy0, 0, 0, w, h);
+  const upx = uctx.getImageData(0, 0, w, h).data, ug = new Float32Array(w * h);
+  for (let i = 0; i < w * h; i++) ug[i] = 0.299 * upx[i * 4] + 0.587 * upx[i * 4 + 1] + 0.114 * upx[i * 4 + 2];
+
+  // 3. Local-mean threshold (41 px window) using an integral image.
+  const ii = new Float64Array((w + 1) * (h + 1));
+  for (let y = 0; y < h; y++) { let row = 0; for (let x = 0; x < w; x++) { row += ug[y * w + x]; ii[(y + 1) * (w + 1) + x + 1] = ii[y * (w + 1) + x + 1] + row; } }
+  const out = document.createElement('canvas'); out.width = w; out.height = h;
+  const octx = out.getContext('2d')!, img = octx.createImageData(w, h), r = 20, C = 12;
+  for (let y = 0; y < h; y++) {
+    const ya = Math.max(0, y - r), yb = Math.min(h, y + r + 1);
+    for (let x = 0; x < w; x++) {
+      const xa = Math.max(0, x - r), xb = Math.min(w, x + r + 1);
+      const sum = ii[yb * (w + 1) + xb] - ii[ya * (w + 1) + xb] - ii[yb * (w + 1) + xa] + ii[ya * (w + 1) + xa];
+      const v = ug[y * w + x] < sum / ((yb - ya) * (xb - xa)) - C ? 0 : 255, o = (y * w + x) * 4;
+      img.data[o] = img.data[o + 1] = img.data[o + 2] = v; img.data[o + 3] = 255;
+    }
+  }
+  octx.putImageData(img, 0, 0);
+  return out;
 }
 
 export async function scanReceipt(file: Blob, cats: Category[], onProgress: (p: number) => void): Promise<Receipt> {
@@ -324,23 +448,43 @@ export async function scanReceipt(file: Blob, cats: Category[], onProgress: (p: 
     await worker.setParameters({ preserve_interword_spaces: '1', tessedit_pageseg_mode: '6' as never });
     const read = async (img: HTMLCanvasElement) => { const { data } = await worker.recognize(img); return { text: data.text, confidence: data.confidence }; };
     // Find which way up the photo is: a sideways or upside-down receipt reads as low-confidence gibberish.
-    let page = canvas;
+    const plain = canvas.contrast;
+    let plainPage = plain;
+    let page = cleanForOcr(canvas.raw);
     let pass = await read(page);
-    if (pass.confidence < 60) {
+    // How well a reading holds together: items that add up to the printed subtotal, and a total that fits.
+    const score = (r: Receipt) => {
+      const sum = r.items.reduce((a, it) => a + it.amount, 0);
+      return r.items.length + (r.subtotal && sum === r.subtotal ? 20 : 0) + (r.total && r.charges && Math.abs(r.total - ((r.subtotal || sum) - r.charges.discount + r.charges.service + r.charges.tax)) <= 1 ? 5 : 0);
+    };
+    const good = (r: Receipt) => {
+      const sum = r.items.reduce((a, it) => a + it.amount, 0), c = r.charges;
+      if (!sum) return false;
+      if (r.subtotal) return sum === r.subtotal;
+      return !!c && Math.abs(r.total - (sum - c.discount + c.service + c.tax)) <= 1 && /total/i.test(r.text);
+    };
+    let best = parseReceipt(pass.text, cats);
+    if (good(best)) return best;
+    // Only when the first reading doesn't hold together: maybe the photo is sideways or upside down.
+    if (pass.confidence < 60 || !best.items.length) {
+      const upright = page;
       for (const deg of [90, 270, 180] as const) {
-        const turned = rotate(canvas, deg);
+        const turned = rotate(upright, deg);
         const r = await read(turned);
-        if (r.confidence > pass.confidence + 10) { page = turned; pass = r; }
+        if (r.confidence > pass.confidence + 10) { page = turned; pass = r; plainPage = rotate(plain, deg); }
         if (pass.confidence >= 70) break;
       }
+      const r = parseReceipt(pass.text, cats);
+      if (score(r) > score(best)) best = r;
+      if (good(best)) return best;
     }
-    const first = parseReceipt(pass.text, cats);
-    if (first.total && first.items.length) return first;
-    // Photos with background or uneven columns sometimes read better in column mode; keep whichever found more.
-    await worker.setParameters({ tessedit_pageseg_mode: '4' as never });
-    const second = parseReceipt((await read(page)).text, cats);
-    const score = (r: Receipt) => (r.total ? 3 : 0) + r.items.length;
-    const best = score(second) > score(first) ? second : first;
+    const tries: [HTMLCanvasElement, string][] = [[page, '4'], [plainPage, '6']];
+    for (const [img, psm] of tries) {
+      await worker.setParameters({ tessedit_pageseg_mode: psm as never });
+      const r = parseReceipt((await read(img)).text, cats);
+      if (score(r) > score(best)) best = r;
+      if (good(best)) break;
+    }
     return best;
   } finally {
     await worker.terminate();

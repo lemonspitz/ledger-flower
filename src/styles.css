@@ -499,3 +499,10 @@ input, select, textarea { border-radius: 12px; }
 .bill-entry small { color: var(--ink-2); font-size: 12.5px; }
 .bill-entry > svg { color: var(--ink-3); flex: none; }
 .bill-entry-ic { width: 38px; height: 38px; border-radius: 12px; background: var(--accent); color: var(--on-accent); display: grid; place-items: center; flex: none; }
+
+.charge-in { display: flex; gap: 6px; align-items: center; }
+.charge-in input { flex: 1; min-width: 0; text-align: right; font-variant-numeric: tabular-nums; }
+.unit-switch { display: inline-flex; background: var(--wash); border-radius: 999px; padding: 3px; flex: none; }
+.unit-switch button { min-width: 34px; padding: 5px 9px; border-radius: 999px; font-size: 13px; font-weight: 600; color: var(--ink-2); }
+.unit-switch button.on { background: var(--raised); color: var(--accent-ink); box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08), 0 0 0 1px var(--ring); }
+.charge small { font-variant-numeric: tabular-nums; }

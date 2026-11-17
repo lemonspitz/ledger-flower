@@ -5,7 +5,7 @@ import { Capacitor } from '@capacitor/core';
 import { Share } from '@capacitor/share';
 import { fmtInput, parseAmount, type Model } from './calc';
 import { scanReceipt, type Receipt } from './receipt';
-import { computeBill, ratesFromAmounts, type BillItem } from './split';
+import { computeBill, ratesOf, type BillItem } from './split';
 import { put, txId, type PayKind, type Tx } from './store';
 import { Field, Icon, Modal, Seg } from './ui';
 
@@ -35,9 +35,13 @@ export function BillSplit({ m, init, ctx, onBack, onSaved, onScanned }: { m: Mod
   const [place, setPlace] = useState(init.place);
   const [people, setPeople] = useState<string[]>([ME]);
   const [rows, setRows] = useState<Row[]>(() => (init.items.length ? init.items.map((i) => newRow(i.name, money(i.amount))) : [newRow()]));
+  // Service and tax are entered either as printed amounts (Rp) — the app works out the rate — or as rates (%).
   const [service, setService] = useState('');
   const [tax, setTax] = useState('');
+  const [svcMode, setSvcMode] = useState<'amt' | 'pct'>('amt');
+  const [taxMode, setTaxMode] = useState<'amt' | 'pct'>('amt');
   const [taxOnService, setTaxOnService] = useState(true);
+  const [printedTax, setPrintedTax] = useState<number | undefined>();
   const [date, setDate] = useState(init.date);
   const [receiptTotal, setReceiptTotal] = useState<number | undefined>();
   const [scan, setScan] = useState<{ busy?: boolean; progress?: number; error?: string; done?: string; text?: string }>({});
@@ -51,8 +55,24 @@ export function BillSplit({ m, init, ctx, onBack, onSaved, onScanned }: { m: Mod
 
   const pastFriends = useMemo(() => [...new Set(m.txs.map((t) => t.who).filter((w): w is string => !!w))].slice(0, 30), [m.txs]);
   const label = (k: string) => (k === ME ? 'Me' : k);
-  const res = computeBill(rows.map((r) => ({ name: r.name.trim(), unit: parseAmount(r.price), qty: r.qty, who: r.who })), people,
-    { service: Number(service.replace(',', '.')) || 0, tax: Number(tax.replace(',', '.')) || 0, taxOnService, discount: parseAmount(discount) });
+  const pctNum = (v: string) => Number(v.replace(',', '.')) || 0;
+  const res = computeBill(rows.map((r) => ({ name: r.name.trim(), unit: parseAmount(r.price), qty: r.qty, who: r.who })), people, {
+    service: svcMode === 'pct' ? pctNum(service) : 0, tax: taxMode === 'pct' ? pctNum(tax) : 0, taxOnService, discount: parseAmount(discount),
+    serviceAmt: svcMode === 'amt' ? parseAmount(service) : undefined, taxAmt: taxMode === 'amt' ? parseAmount(tax) : undefined,
+  });
+  // The rates the amounts work out to, against this bill's subtotal.
+  const base = res.subtotal - res.discount;
+  const guessed = ratesOf(base, res.service, res.tax, printedTax);
+  // Show the rate the person typed in % mode; in amount mode, the rate worked out from the amount.
+  const rates = { service: svcMode === 'pct' ? pctNum(service) : guessed.service, tax: taxMode === 'pct' ? pctNum(tax) : guessed.tax, taxOnService: taxMode === 'pct' ? taxOnService : guessed.taxOnService };
+  const shown = (x: number) => (Math.round(x * 100) / 100).toLocaleString(undefined, { maximumFractionDigits: 2 });
+  const switchMode = (which: 'svc' | 'tax') => {
+    if (which === 'svc') {
+      if (svcMode === 'amt') { setService(res.service ? pctText(rates.service) : ''); setSvcMode('pct'); }
+      else { setService(res.service ? money(res.service) : ''); setSvcMode('amt'); }
+    } else if (taxMode === 'amt') { setTax(res.tax ? pctText(rates.tax) : ''); setTaxOnService(rates.taxOnService); setTaxMode('pct'); }
+    else { setTax(res.tax ? money(res.tax) : ''); setTaxMode('amt'); }
+  };
   const friends = people.filter((p) => p !== ME);
   const setRow = (id: number, p: Partial<Row>) => setRows(rows.map((r) => (r.id === id ? { ...r, ...p } : r)));
   const toggleWho = (r: Row, k: string) => {
@@ -81,13 +101,15 @@ export function BillSplit({ m, init, ctx, onBack, onSaved, onScanned }: { m: Mod
       }
       const c = r.charges ?? { service: 0, tax: 0, discount: 0 };
       const sub = r.items.reduce((a, i) => a + i.amount, 0);
-      const rates = ratesFromAmounts(sub - c.discount, c.service, c.tax, { service: c.servicePct, tax: c.taxPct });
       setRows(r.items.map((i) => newRow(i.name, money(i.unit ?? i.amount), [], i.qty ?? 1)));
-      setService(pctText(rates.service)); setTax(pctText(rates.tax)); setTaxOnService(rates.taxOnService);
+      // Use the amounts exactly as printed, so the bill matches the receipt to the last rupiah; the rates are shown next to them.
+      setService(c.service ? money(c.service) : ''); setTax(c.tax ? money(c.tax) : ''); setSvcMode('amt'); setTaxMode('amt');
+      setPrintedTax(c.taxPct);
+      setTaxOnService(ratesOf(sub - c.discount, c.service, c.tax, c.taxPct).taxOnService);
       setDiscount(c.discount ? money(c.discount) : '');
       if (r.merchant) setPlace(r.merchant);
       setDate(r.date);
-      setReceiptTotal(r.total || undefined);
+      setReceiptTotal(r.totalPrinted ? r.total : undefined); // only check against a total that was actually printed and read
       onScanned?.(r);
       const n = r.items.reduce((a, i) => a + (i.qty ?? 1), 0);
       setScan({ text: r.text, done: `Read ${r.items.length} menu line${r.items.length === 1 ? '' : 's'} (${n} item${n === 1 ? '' : 's'})${c.service || c.tax ? ', service and tax' : ''}${c.discount ? ' and a discount' : ''}. Check them below${friends.length ? '' : ', then add friends to split'}.` });
@@ -100,7 +122,7 @@ export function BillSplit({ m, init, ctx, onBack, onSaved, onScanned }: { m: Mod
   const summary = () => {
     const f = m.fmt;
     const head = [`${place || 'Bill'} — ${new Date(date + 'T00:00').toLocaleDateString(undefined, { day: 'numeric', month: 'short', year: 'numeric' })}`,
-      `Subtotal ${f(res.subtotal)}${res.discount ? ` · Discount −${f(res.discount)}` : ''}${res.service ? ` · Service ${service}% ${f(res.service)}` : ''}${res.tax ? ` · Tax ${tax}% ${f(res.tax)}` : ''}`,
+      `Subtotal ${f(res.subtotal)}${res.discount ? ` · Discount −${f(res.discount)}` : ''}${res.service ? ` · Service ${shown(rates.service)}% ${f(res.service)}` : ''}${res.tax ? ` · Tax ${shown(rates.tax)}% ${f(res.tax)}` : ''}`,
       `Total ${f(res.total)}`, ''];
     const body = res.people.filter((p) => p.total > 0).map((p) => [`${label(p.key)}: ${f(p.total)}`,
       ...p.lines.map((l) => `  • ${l.name}${l.sharedBy > 1 ? ` (1/${l.sharedBy})` : ''} ${f(l.amount)}`),
@@ -216,19 +238,21 @@ export function BillSplit({ m, init, ctx, onBack, onSaved, onScanned }: { m: Mod
         </div>
 
         <div className="row2 charges">
-          <Field label="Service %"><input inputMode="decimal" value={service} onChange={(e) => setService(e.target.value)} placeholder="0" /></Field>
-          <Field label="Tax %"><input inputMode="decimal" value={tax} onChange={(e) => setTax(e.target.value)} placeholder="0" /></Field>
+          <ChargeField label="Service" mode={svcMode} value={service} onChange={setService} onSwitch={() => switchMode('svc')} currency={m.fmt(0).replace(/[\d\s.,]/g, '') || '$'}
+            note={res.service ? (svcMode === 'amt' ? `= ${shown(rates.service)}% of ${m.fmt(base)}` : `= ${m.fmt(res.service)}`) : undefined} />
+          <ChargeField label="Tax" mode={taxMode} value={tax} onChange={setTax} onSwitch={() => switchMode('tax')} currency={m.fmt(0).replace(/[\d\s.,]/g, '') || '$'}
+            note={res.tax ? (taxMode === 'amt' ? `= ${shown(rates.tax)}% of ${rates.taxOnService && res.service ? 'subtotal + service' : 'subtotal'}` : `= ${m.fmt(res.tax)}`) : undefined} />
         </div>
         <div className="row2 charges">
           <Field label="Discount"><input inputMode="decimal" value={discount} onChange={(e) => setDiscount(e.target.value)} placeholder="0" /></Field>
-          <label className="check tight"><input type="checkbox" checked={taxOnService} onChange={(e) => setTaxOnService(e.target.checked)} />Tax is charged on service too</label>
+          {taxMode === 'pct' && <label className="check tight"><input type="checkbox" checked={taxOnService} onChange={(e) => setTaxOnService(e.target.checked)} />Tax is charged on service too</label>}
         </div>
 
         <div className="bill-total">
           <div><span>Subtotal</span><b>{m.fmt(res.subtotal)}</b></div>
           {res.discount > 0 && <div><span>Discount</span><b>−{m.fmt(res.discount)}</b></div>}
-          <div><span>Service{service ? ` ${service}%` : ''}</span><b>{m.fmt(res.service)}</b></div>
-          <div><span>Tax{tax ? ` ${tax}%` : ''}</span><b>{m.fmt(res.tax)}</b></div>
+          <div><span>Service{res.service ? ` ${shown(rates.service)}%` : ''}</span><b>{m.fmt(res.service)}</b></div>
+          <div><span>Tax{res.tax ? ` ${shown(rates.tax)}%` : ''}</span><b>{m.fmt(res.tax)}</b></div>
           <div className="grand"><span>Total</span><b>{m.fmt(res.total)}</b></div>
           {receiptTotal !== undefined && Math.abs(diff) > 1 && (
             <p className="status warn"><Icon name="warn" size={13} />Receipt says {m.fmt(receiptTotal)} — {diff > 0 ? `${m.fmt(diff)} more` : `${m.fmt(-diff)} less`} here. Check prices, service and tax.</p>
@@ -263,5 +287,22 @@ export function BillSplit({ m, init, ctx, onBack, onSaved, onScanned }: { m: Mod
         {error && <p className="scan-note bad"><Icon name="warn" size={14} />{error}</p>}
       </div>
     </Modal>
+  );
+}
+
+/** A service or tax box that takes either the printed amount or a rate, with a switch between them. */
+function ChargeField({ label, mode, value, onChange, onSwitch, note, currency }: { label: string; mode: 'amt' | 'pct'; value: string; onChange: (v: string) => void; onSwitch: () => void; note?: string; currency: string }) {
+  return (
+    <div className="field charge">
+      <span>{label}</span>
+      <div className="charge-in">
+        <input inputMode="decimal" value={value} onChange={(e) => onChange(e.target.value)} placeholder="0" aria-label={`${label} ${mode === 'amt' ? 'amount' : 'percent'}`} />
+        <div className="unit-switch" role="group" aria-label={`${label} entered as`}>
+          <button type="button" className={mode === 'amt' ? 'on' : ''} aria-pressed={mode === 'amt'} onClick={() => mode !== 'amt' && onSwitch()}>{currency}</button>
+          <button type="button" className={mode === 'pct' ? 'on' : ''} aria-pressed={mode === 'pct'} onClick={() => mode !== 'pct' && onSwitch()}>%</button>
+        </div>
+      </div>
+      {note && <small>{note}</small>}
+    </div>
   );
 }
