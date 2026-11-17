@@ -3,7 +3,7 @@
 import { useMemo, useState } from 'react';
 import { Capacitor } from '@capacitor/core';
 import { Share } from '@capacitor/share';
-import { parseAmount, type Model } from './calc';
+import { fmtInput, parseAmount, type Model } from './calc';
 import { computeBill, ratesFromAmounts, type BillItem } from './split';
 import { put, txId, type PayKind, type Tx } from './store';
 import { Field, Icon, Modal, Seg } from './ui';
@@ -22,7 +22,7 @@ export interface BillCtx { acc: string; cat?: string; sub?: string; pm?: PayKind
 interface Row extends Omit<BillItem, 'unit'> { id: number; price: string }
 let seq = 0;
 const newRow = (name = '', price = '', who: string[] = [], qty = 1): Row => ({ id: ++seq, name, price, qty, who });
-const money = (minor: number) => (minor % 100 ? (minor / 100).toFixed(2) : String(minor / 100));
+const money = fmtInput;
 /** A scanned "2 ES TEH 40.000" line becomes 2 × 20.000. */
 function rowFromScan(name: string, amount: number): Row {
   const m = name.match(/^(\d{1,2})\s*[xX×]?\s+(.{2,})$/);

@@ -1,5 +1,5 @@
 import { useMemo } from 'react';
-import { live, today, useData, ymd, type Data, type PayMethod, type Settings, type Tx } from './store';
+import { live, today, useData, ymd, type Data, type NumFmt, type PayMethod, type Settings, type Tx } from './store';
 
 export const curMonth = () => today().slice(0, 7);
 export function addMonths(m: string, n: number) {
@@ -47,14 +47,17 @@ export function buildModel(data: Data) {
     if (d) owed.set(t.who, (owed.get(t.who) ?? 0) + d);
   }
   for (const [k, v] of owed) if (v === 0) owed.delete(k);
-  const currency = (data.settings.settings as Settings | undefined)?.currency || 'USD';
+  const st = data.settings.settings as Settings | undefined;
+  const currency = st?.currency || 'USD';
+  const numFmt: NumFmt = st?.numFmt && NUM_FORMATS[st.numFmt] ? st.numFmt : 'auto';
+  decSep = (1.5).toLocaleString(NUM_FORMATS[numFmt].locale).includes(',') ? ',' : '.';
   const methods = (live(data.settings).filter((r) => (r as PayMethod).type === 'method') as PayMethod[]).sort((a, b) => a.kind.localeCompare(b.kind) || a.name.localeCompare(b.name));
   const methodName = (p: PayMethod) => p.name + (p.last4 ? ` ••${p.last4}` : '');
-  const nf = new Intl.NumberFormat(undefined, { style: 'currency', currency });
-  const nf0 = new Intl.NumberFormat(undefined, { style: 'currency', currency, maximumFractionDigits: 0 });
-  const nfc = new Intl.NumberFormat(undefined, { style: 'currency', currency, notation: 'compact', maximumFractionDigits: 1 });
+  const nf = moneyFormatter(currency, numFmt, st?.decimals);
+  const nf0 = moneyFormatter(currency, numFmt, 'hide');
+  const nfc = moneyFormatter(currency, numFmt, 'hide', { notation: 'compact', maximumFractionDigits: 1 });
   return {
-    data, txs, accounts, owed, categories, balances, months, netWorth, currency,
+    data, txs, accounts, owed, categories, balances, months, netWorth, currency, numFmt, decimals: st?.decimals ?? 'auto',
     month: (m: string) => months.get(m) ?? emptyMonth(),
     methods,
     method: (id?: string) => methods.find((p) => p.id === id),
@@ -89,12 +92,44 @@ export function useModel() {
   return useMemo(() => buildModel(data), [data]);
 }
 
-const num = (t: string) => Number(t.replace(/,(\d{1,2})$/, '.$1').replace(/,/g, ''));
+// ───────── number format ─────────
+/** Separator styles, shown in Settings with a live example. */
+export const NUM_FORMATS: Record<NumFmt, { locale: string | undefined; label: string }> = {
+  auto: { locale: undefined, label: 'Same as this device' },
+  en: { locale: 'en-US', label: '1,234.56' }, id: { locale: 'id-ID', label: '1.234,56' }, fr: { locale: 'fr-FR', label: '1 234,56' },
+  ch: { locale: 'de-CH', label: "1'234.56" }, in: { locale: 'en-IN', label: '1,23,456.78' },
+};
+/** Currencies people normally write without cents, even though they officially have them. */
+const NO_CENTS = new Set(['IDR', 'HUF', 'CLP', 'COP', 'PYG', 'UGX', 'TZS', 'MMK', 'LAK', 'KHR', 'IRR']);
+let decSep = (1.5).toLocaleString().includes(',') ? ',' : '.';
+export const decimalSeparator = () => decSep;
+export function moneyFormatter(currency: string, numFmt: NumFmt = 'auto', decimals: Settings['decimals'] = 'auto', extra: Intl.NumberFormatOptions = {}) {
+  const loc = NUM_FORMATS[numFmt]?.locale;
+  const official = new Intl.NumberFormat('en', { style: 'currency', currency }).resolvedOptions().maximumFractionDigits ?? 2;
+  // Rupiah and similar officially have a smaller unit, so "Always" shows two decimals even though most apps hide them.
+  const d = decimals === 'hide' ? 0 : decimals === 'show' ? (NO_CENTS.has(currency) ? 2 : official) : NO_CENTS.has(currency) ? 0 : official;
+  return new Intl.NumberFormat(loc, { style: 'currency', currency, minimumFractionDigits: d, maximumFractionDigits: d, ...extra });
+}
+/** An amount for an input box, in the chosen style but without thousands separators: 1000 · 1000,5 · 12.50 */
+export const fmtInput = (minor: number) => {
+  const s = minor % 100 ? (minor / 100).toFixed(2) : String(minor / 100);
+  return decSep === ',' ? s.replace('.', ',') : s;
+};
+
+/** Read a typed number using the chosen separators. "1.000" is a thousand when the decimal mark is a comma. */
+const num = (raw: string) => {
+  const t = raw.replace(/[\s'’\u00a0\u202f]/g, '');
+  const [dec, grp] = decSep === ',' ? [',', '.'] : ['.', ','];
+  // A lone opposite mark followed by 1–2 digits at the end is still a decimal point (12.50 typed on an ID-style phone).
+  if (!t.includes(dec) && new RegExp('\\' + grp + '\\d{1,2}$').test(t) && t.split(grp).length === 2) return Number(t.replace(grp, '.'));
+  return Number(t.split(grp).join('').replace(dec, '.'));
+};
 export const OPS = /[+\-−*/×÷]/;
 /** Works out a sum typed as text, e.g. "3.49 + 9.75 × 2". Returns null if it isn't a complete sum. */
 export function evalExpr(input: string): number | null {
-  const toks = input.replace(/\s+/g, '').match(/\d[\d.,]*|\.\d+|[+\-−*/×÷()]/g);
-  if (!toks || toks.join('') !== input.replace(/\s+/g, '').replace(/[^\d.,+\-−*/×÷()]/g, '')) return null;
+  input = input.replace(/[\s'’\u00a0\u202f]+/g, '');
+  const toks = input.match(/\d[\d.,]*|\.\d+|[+\-−*/×÷()]/g);
+  if (!toks || toks.join('') !== input.replace(/[^\d.,+\-−*/×÷()]/g, '')) return null;
   let i = 0;
   const peek = () => toks[i];
   const expr = (): number => {
@@ -118,7 +153,7 @@ export function evalExpr(input: string): number | null {
 }
 /** The amount in cents. Accepts plain numbers (12.50, 1,234.56, 12,50) and sums (3.49 + 9.75). */
 export const parseAmount = (s: string) => {
-  const t = s.replace(/[^\d.,+\-−*/×÷() ]/g, '').trim().replace(/[+\-−*/×÷\s]+$/, '');
+  const t = s.replace(/[^\d.,+\-−*/×÷() '’\u00a0\u202f]/g, '').trim().replace(/[+\-−*/×÷\s]+$/, '');
   const n = evalExpr(t) ?? num(t.replace(/[^\d.,-]/g, ''));
   return Number.isFinite(n) ? Math.round(Math.abs(n) * 100) : 0;
 };

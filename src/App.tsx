@@ -3,10 +3,10 @@ import QRCode from 'qrcode';
 import { Capacitor } from '@capacitor/core';
 import { Directory, Encoding, Filesystem } from '@capacitor/filesystem';
 import { Share } from '@capacitor/share';
-import { curMonth, toCsv, useModel, type Model } from './calc';
+import { NUM_FORMATS, curMonth, moneyFormatter, toCsv, useModel, type Model } from './calc';
 import { demoData } from './demo';
 import { Dialogs, type Dialog } from './forms';
-import { flushSave, getData, replaceAll, put, runRecurring, type Data } from './store';
+import { flushSave, getData, replaceAll, put, runRecurring, type Data, type Settings, type NumFmt } from './store';
 import { DEFAULT_RELAYS, loadPrefs, newSyncCode, normalizeCode, savePrefs, sync, type LocalPrefs } from './sync';
 import { Card, Field, Icon, Seg } from './ui';
 import { Backdrop, PlantArt, THEMES, THEME_IDS, type ThemeId } from './themes';
@@ -179,6 +179,8 @@ function MoreSheet({ view, onPick, onClose, pull, animateIn }: { view: string; o
 }
 
 function SettingsView({ m, prefs, setPrefs, open }: { m: Model; prefs: LocalPrefs; setPrefs: (p: LocalPrefs) => void; open: (d: Dialog) => void }) {
+  // Keep the other preferences in the record when changing one of them.
+  const saveSettings = (patch: Partial<Settings>) => put('settings', { ...(m.data.settings.settings as Settings | undefined), id: 'settings', currency: m.currency, ...patch } as Settings);
   const [confirm, setConfirm] = useState<'demo' | 'erase' | null>(null);
   const restore = (file: File) => file.text().then((t) => {
     const d = JSON.parse(t) as Partial<Data>;
@@ -193,10 +195,22 @@ function SettingsView({ m, prefs, setPrefs, open }: { m: Model; prefs: LocalPref
         <div className="form">
           <div className="row2">
             <Field label="Currency" hint="Shared with your other devices.">
-              <select value={m.currency} onChange={(e) => put('settings', { id: 'settings', currency: e.target.value })}>{CURRENCIES.map((c) => <option key={c}>{c}</option>)}</select>
+              <select value={m.currency} onChange={(e) => saveSettings({ currency: e.target.value })}>{CURRENCIES.map((c) => <option key={c}>{c}</option>)}</select>
             </Field>
             <Field label="Appearance" hint="Only on this device.">
               <Seg value={prefs.theme} onChange={(theme) => setPrefs({ ...prefs, theme })} options={[['auto', 'System'], ['light', 'Light'], ['dark', 'Dark']]} />
+            </Field>
+          </div>
+          <div className="row2">
+            <Field label="Number format" hint="How amounts are shown and how typed amounts are read. Shared with your other devices.">
+              <select value={m.numFmt} onChange={(e) => saveSettings({ numFmt: e.target.value as NumFmt })} aria-label="Number format">
+                {(Object.keys(NUM_FORMATS) as NumFmt[]).map((k) => (
+                  <option key={k} value={k}>{(k === 'auto' ? 'Same as this device — ' : '') + moneyFormatter(m.currency, k, m.decimals).format(1234567.89)}</option>
+                ))}
+              </select>
+            </Field>
+            <Field label="Decimals" hint={m.decimals === 'auto' ? `Automatic: ${moneyFormatter(m.currency, m.numFmt, 'auto').format(1000)} for ${m.currency}.` : undefined}>
+              <Seg value={m.decimals} onChange={(decimals) => saveSettings({ decimals })} options={[['auto', 'Automatic'], ['show', 'Always'], ['hide', 'Never']]} />
             </Field>
           </div>
           <div className="field">

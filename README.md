@@ -19,6 +19,7 @@ Capacitor for Android and Electron for desktop.
 - **Goals** – savings targets with progress and the monthly amount needed to hit a date.
 - **Accounts & recurring** – multiple accounts with balances; bills and paychecks that enter themselves.
 - **Plant themes** – a frosted-glass design with large plant illustrations behind the glass, in 10 themes (Monstera, Eucalyptus, Fern, Bamboo, Sunflower, Maple, Sakura, Lavender, Blue Lotus, Olive), each in light and dark. Chart colours in every theme use pairs checked for colour-blind readability. Pick one under Settings → Preferences.
+- **Number format** – Settings → Preferences: 1,234.56 · 1.234,56 · 1 234,56 · 1'234.56 · 1,23,456.78, or the device's own style, plus decimals Automatic/Always/Never (Automatic hides cents for Rupiah and similar). Typed amounts follow the same style, so with 1.234,56 typing 1.000 means one thousand.
 - **Data** – CSV export, JSON backup/restore, light and dark themes, 30+ currencies.
 
 ## Sync
@@ -68,8 +69,8 @@ npm run dist:mac
 npm run android
 ```
 
-- Windows build output: `release/Ledgerleaf Setup 1.6.0.exe` (installer; shipped here renamed to `Ledgerleaf-1.6.0-windows-setup.exe`) and a portable `.exe`. Building on Linux needs Wine.
-- macOS output: `release/Ledgerleaf-1.6.0-mac-arm64.zip` (Apple silicon) and `-x64.zip` (Intel).
+- Windows build output: `release/Ledgerleaf Setup 1.7.0.exe` (installer; shipped here renamed to `Ledgerleaf-1.7.0-windows-setup.exe`) and a portable `.exe`. Building on Linux needs Wine.
+- macOS output: `release/Ledgerleaf-1.7.0-mac-arm64.zip` (Apple silicon) and `-x64.zip` (Intel).
 - Android output: `android/app/build/outputs/apk/debug/app-debug.apk`. Needs the Android SDK (`ANDROID_HOME`) and JDK 21.
 
 The desktop apps are unsigned. Windows SmartScreen will ask for confirmation

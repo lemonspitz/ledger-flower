@@ -13,7 +13,8 @@ export interface Tx extends Base { date: string; amount: number; type: TxType; a
 export interface Budget extends Base { limit: number } // id === category id
 export interface Goal extends Base { name: string; target: number; saved: number; due?: string; icon: string }
 export interface Recurring extends Base { name: string; amount: number; type: 'expense' | 'income'; acc: string; cat: string; freq: 'weekly' | 'monthly' | 'yearly'; next: string }
-export interface Settings extends Base { currency: string }
+export type NumFmt = 'auto' | 'en' | 'id' | 'fr' | 'ch' | 'in';
+export interface Settings extends Base { currency: string; numFmt?: NumFmt; decimals?: 'auto' | 'show' | 'hide' }
 export type PayKind = 'cash' | 'card' | 'qr';
 /** A saved card or QR bank/app. Kept in the settings collection (ids start with "pm_") so devices on
  *  older versions, which only read the "settings" record there, keep these intact when syncing. */

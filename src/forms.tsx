@@ -1,6 +1,6 @@
 import { useRef, useState } from 'react';
 import { Capacitor } from '@capacitor/core';
-import { OPS, evalExpr, parseAmount, type Model } from './calc';
+import { OPS, decimalSeparator, evalExpr, fmtInput, parseAmount, type Model } from './calc';
 import { put, remove, today, txId, uid, type Account, type Category, type Goal, type PayKind, type PayMethod, type Recurring, type Tx, type TxType } from './store';
 import { merchantSub, scanReceipt, type Receipt } from './receipt';
 import { BillSplit, type BillInit } from './bill';
@@ -8,7 +8,7 @@ import { Field, Icon, Modal, Seg } from './ui';
 
 const MOBILE = Capacitor.isNativePlatform() || /Android|iPhone|iPad/i.test(navigator.userAgent);
 
-const amt = (c?: number) => (c ? (c / 100).toFixed(2) : '');
+const amt = (c?: number) => (c ? fmtInput(c) : '');
 
 export type Dialog =
   | { k: 'tx'; tx?: Tx; preset?: Partial<Tx> }
@@ -88,7 +88,7 @@ function TxForm({ m, tx, preset, close }: { m: Model; tx?: Tx; preset?: Partial<
       const r = await scanReceipt(file, m.categories, (p) => setScan({ busy: true, progress: p }));
       if (!r.total && !r.items.length) { setScan({ text: r.text, error: r.text.trim() ? 'Text was found, but no prices could be picked out of it. Check the text below, then type the details in, or try a flatter, closer photo.' : 'No text could be read. Try a sharper, well-lit photo taken straight on, with the receipt filling the frame.' }); return; }
       setType('expense');
-      setAmount((r.total / 100).toFixed(2));
+      setAmount(fmtInput(r.total));
       setDate(r.date);
       if (r.merchant) setNote(r.merchant);
       if (r.pay) {
@@ -101,12 +101,12 @@ function TxForm({ m, tx, preset, close }: { m: Model; tx?: Tx; preset?: Partial<
         if (hit?.acc && m.acc(hit.acc)) setAcc(hit.acc);
       }
       if (r.cat) { setCat(r.cat); setSub(merchantSub(r.merchant, m.cat(r.cat)) ?? ''); }
-      const rows = r.items.map((i) => ({ name: i.name, amt: (i.amount / 100).toFixed(2), sub: i.sub ?? '' }));
+      const rows = r.items.map((i) => ({ name: i.name, amt: fmtInput(i.amount), sub: i.sub ?? '' }));
       const sum = r.items.reduce((a, i) => a + i.amount, 0);
       const gap = r.total - sum;
       // Keep itemized entries equal to what was actually paid: carry tax and fees as their own line.
       const taxLine = rows.length > 0 && gap > 1 && gap <= sum * 0.35;
-      if (taxLine) rows.push({ name: 'Tax or unread lines', amt: (gap / 100).toFixed(2), sub: '' });
+      if (taxLine) rows.push({ name: 'Tax or unread lines', amt: fmtInput(gap), sub: '' });
       setItems(rows);
       setSplit(false);
       setLastScan(r);
@@ -185,13 +185,13 @@ function TxForm({ m, tx, preset, close }: { m: Model; tx?: Tx; preset?: Partial<
         )}
         <div className="amount-in">
           <span>{type === 'expense' ? '−' : type === 'income' ? '+' : '⇄'}</span>
-          <input autoFocus={!MOBILE} inputMode={pad && MOBILE ? 'none' : 'decimal'} placeholder="0.00" value={useSplit ? (cents / 100).toFixed(2) : amount}
+          <input autoFocus={!MOBILE} inputMode={pad && MOBILE ? 'none' : 'decimal'} placeholder="0" value={useSplit ? fmtInput(cents) : amount}
             readOnly={useSplit || (pad && MOBILE)} aria-label="Amount"
             onChange={(e) => setAmount(e.target.value.replace(/[^\d.,+\-−*/×÷() ]/g, ''))}
             onKeyDown={(e) => { if (e.key === '=') { e.preventDefault(); const v = evalExpr(amount.replace(/[+\-−*/×÷\s]+$/, '')); if (v !== null) setAmount(fmtCalc(v)); } }} />
           {!useSplit && <button type="button" className={`icon-btn calc-toggle${pad ? ' on' : ''}`} onClick={() => setPad(!pad)} aria-pressed={pad} aria-label={pad ? 'Hide calculator' : 'Show calculator'} title="Calculator"><Icon name="calc" /></button>}
         </div>
-        {!useSplit && OPS.test(amount.replace(/^[-−]/, '')) && <p className="calc-result">= {(cents / 100).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</p>}
+        {!useSplit && OPS.test(amount.replace(/^[-−]/, '')) && <p className="calc-result">= {m.fmt(cents)}</p>}
         {!useSplit && pad && <Keypad value={amount} onChange={setAmount} />}
         {type !== 'transfer' && (
           <div className="chips" role="radiogroup" aria-label="Category">
@@ -294,7 +294,7 @@ function TxForm({ m, tx, preset, close }: { m: Model; tx?: Tx; preset?: Partial<
   );
 }
 
-const fmtCalc = (v: number) => String(Math.round(Math.abs(v) * 100) / 100);
+const fmtCalc = (v: number) => fmtInput(Math.round(Math.abs(v) * 100));
 
 /** On-screen calculator: tap prices and operators, the total is used when you save. */
 function Keypad({ value, onChange }: { value: string; onChange: (v: string) => void }) {
@@ -308,7 +308,7 @@ function Keypad({ value, onChange }: { value: string; onChange: (v: string) => v
       return onChange(/[+\-−×÷*/]$/.test(v) ? v.slice(0, -1) + k : v + k);
     }
     const current = v.split(/[+\-−×÷*/]/).pop() ?? '';
-    if (k === '.') { if (current.includes('.') || current.includes(',')) return; return onChange(v + (current ? '.' : '0.')); }
+    if (k === '.') { const d = decimalSeparator(); if (current.includes('.') || current.includes(',')) return; return onChange(v + (current ? d : '0' + d)); }
     if (/[.,]\d{2}$/.test(current)) return; // two decimal places is enough for money
     onChange(current === '0' ? v.slice(0, -1) + k : v + k);
   };
@@ -317,7 +317,7 @@ function Keypad({ value, onChange }: { value: string; onChange: (v: string) => v
   return (
     <div className="keypad" role="group" aria-label="Calculator">
       {keys.map(([k, c]) => (
-        <button type="button" key={k} className={c} onClick={() => press(k)} aria-label={label[k] ?? k}>{k === '⌫' ? <Icon name="back" size={22} /> : k}</button>
+        <button type="button" key={k} className={c} onClick={() => press(k)} aria-label={label[k] ?? k}>{k === '⌫' ? <Icon name="back" size={22} /> : k === '.' ? decimalSeparator() : k}</button>
       ))}
     </div>
   );
@@ -361,7 +361,7 @@ function MethodForm({ m, method, kind: k0, close }: { m: Model; method?: PayMeth
 
 function SettleForm({ m, who, owed, close }: { m: Model; who: string; owed: number; close: () => void }) {
   const accounts = m.accounts.filter((a) => a.type !== 'owed');
-  const [v, setV] = useState((owed / 100).toFixed(2));
+  const [v, setV] = useState(fmtInput(owed));
   const [acc, setAcc] = useState(accounts[0]?.id ?? '');
   const [date, setDate] = useState(today());
   const c = parseAmount(v);
@@ -440,7 +440,7 @@ function FundForm({ m, goal, close }: { m: Model; goal: Goal; close: () => void 
 function AccountForm({ m, acc, close }: { m: Model; acc?: Account; close: () => void }) {
   const [name, setName] = useState(acc?.name ?? '');
   const [type, setType] = useState<Account['type']>(acc?.type ?? 'bank');
-  const [opening, setOpening] = useState(acc ? (acc.opening / 100).toFixed(2) : '');
+  const [opening, setOpening] = useState(acc ? (acc.opening < 0 ? '-' : '') + fmtInput(Math.abs(acc.opening)) : '');
   const neg = opening.trim().startsWith('-');
   const canDelete = acc && m.accounts.length > 1;
   return (
