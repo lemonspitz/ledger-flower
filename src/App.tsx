@@ -4,7 +4,8 @@ import { Capacitor } from '@capacitor/core';
 import { StatusBar, Style } from '@capacitor/status-bar';
 import { Directory, Encoding, Filesystem } from '@capacitor/filesystem';
 import { Share } from '@capacitor/share';
-import { NUM_FORMATS, curMonth, moneyFormatter, toCsv, useModel, type Model } from './calc';
+import { NUM_FORMATS, curMonth, moneyFormatter, useModel, type Model } from './calc';
+import { buildWorkbook, csvName, toTidyCsv, xlsxName } from './export';
 import { demoData } from './demo';
 import { Dialogs, type Dialog } from './forms';
 import { flushSave, getData, replaceAll, put, runRecurring, type Data, type Settings, type NumFmt } from './store';
@@ -26,18 +27,29 @@ const CURRENCIES = ['USD', 'EUR', 'GBP', 'JPY', 'CAD', 'AUD', 'CHF', 'CNY', 'INR
 
 function useSync() { return useSyncExternalStore(sync.subscribe, sync.getStatus); }
 
-async function download(name: string, text: string, type: string) {
+async function download(name: string, content: string | Uint8Array, type: string) {
   if (Capacitor.isNativePlatform()) {
     // Android has no "save file" for web downloads: write it out and open the share sheet.
-    const { uri } = await Filesystem.writeFile({ path: name, data: text, directory: Directory.Cache, encoding: Encoding.UTF8 });
+    const { uri } = typeof content === 'string'
+      ? await Filesystem.writeFile({ path: name, data: content, directory: Directory.Cache, encoding: Encoding.UTF8 })
+      : await Filesystem.writeFile({ path: name, data: toBase64(content), directory: Directory.Cache });
     await Share.share({ title: name, url: uri });
     return;
   }
   const a = document.createElement('a');
-  a.href = URL.createObjectURL(new Blob([text], { type }));
+  a.href = URL.createObjectURL(new Blob([content as BlobPart], { type }));
   a.download = name;
   a.click();
   setTimeout(() => URL.revokeObjectURL(a.href), 5000);
+}
+
+function toBase64(u: Uint8Array) { let s = ''; for (let i = 0; i < u.length; i += 0x8000) s += String.fromCharCode(...u.subarray(i, i + 0x8000)); return btoa(s); }
+
+/** Builds the Excel report. The spreadsheet library is loaded only now, so it doesn't slow down opening the app. */
+async function exportExcel(m: Model, flowerId: string) {
+  const { default: ExcelJS } = await import('exceljs');
+  const file = await buildWorkbook(ExcelJS, m, flowerById(flowerId));
+  await download(xlsxName(), file, 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
 }
 
 function SyncBadge({ onClick }: { onClick: () => void }) {
@@ -194,6 +206,7 @@ function MoreSheet({ view, onPick, onClose, pull, animateIn }: { view: string; o
 
 function SettingsView({ m, prefs, setPrefs, open }: { m: Model; prefs: LocalPrefs; setPrefs: (p: LocalPrefs) => void; open: (d: Dialog) => void }) {
   const plant = resolveFlower(prefs.plant);
+  const [busy, setBusy] = useState(false);
   // Keep the other preferences in the record when changing one of them.
   const saveSettings = (patch: Partial<Settings>) => put('settings', { ...(m.data.settings.settings as Settings | undefined), id: 'settings', currency: m.currency, ...patch } as Settings);
   const [confirm, setConfirm] = useState<'demo' | 'erase' | null>(null);
@@ -277,9 +290,10 @@ function SettingsView({ m, prefs, setPrefs, open }: { m: Model; prefs: LocalPref
       <Card title="Categories" action={<button className="btn small" onClick={() => open({ k: 'category' })}><Icon name="plus" size={14} />Add</button>}>
         <div className="chips">{m.categories.map((c) => <button key={c.id} className="chip" onClick={() => open({ k: 'category', cat: c })}><span>{c.icon}</span>{c.name}{c.kind === 'income' && <small>income</small>}</button>)}</div>
       </Card>
-      <Card title="Your data" sub="Everything is stored on this device, and on your other devices if sync is on.">
+      <Card title="Your data" sub="Everything is stored on this device, and on your other devices if sync is on. The Excel report has an overview with charts in your flower theme's colours, plus tidy tables of every transaction, month, category and account; the CSV is the transactions table as plain text.">
         <div className="btn-row">
-          <button className="btn" onClick={() => void download(`ledger-flower-${new Date().toISOString().slice(0, 10)}.csv`, toCsv(m), 'text/csv')}>Export CSV</button>
+          <button className="btn primary" disabled={busy} onClick={() => { setBusy(true); void exportExcel(m, plant).catch((e) => alert('Could not create the Excel report: ' + (e as Error).message)).finally(() => setBusy(false)); }}>{busy ? 'Preparing…' : 'Export Excel report'}</button>
+          <button className="btn" onClick={() => void download(csvName(), toTidyCsv(m), 'text/csv')}>Export CSV</button>
           <button className="btn" onClick={() => void download(`ledger-flower-backup-${new Date().toISOString().slice(0, 10)}.json`, JSON.stringify(getData()), 'application/json')}>Download backup</button>
           <label className="btn">Restore backup<input type="file" accept="application/json,.json" hidden onChange={(e) => { const f = e.target.files?.[0]; if (f) void restore(f); e.target.value = ''; }} /></label>
         </div>

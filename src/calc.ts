@@ -169,10 +169,3 @@ export function cumulative(s: MonthSum, m: string, upTo?: number) {
   for (let i = 0; i < n; i++) { acc += by[i]; out.push(upTo !== undefined && i + 1 > upTo ? null : acc); }
   return out;
 }
-
-export function toCsv(m: Model) {
-  const esc = (v: string) => (/[",\n]/.test(v) ? `"${v.replace(/"/g, '""')}"` : v);
-  const rows = [['Date', 'Type', 'Amount', 'Category', 'Subcategory', 'Account', 'To account', 'Payment', 'Note']];
-  for (const t of m.txs) rows.push([t.date, t.type, (t.amount / 100).toFixed(2), m.cat(t.cat)?.name ?? '', t.sub ?? '', m.acc(t.acc)?.name ?? '', m.acc(t.toAcc)?.name ?? '', m.payLabel(t), t.note]);
-  return rows.map((r) => r.map(esc).join(',')).join('\n');
-}
