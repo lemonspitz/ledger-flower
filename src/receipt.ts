@@ -81,10 +81,11 @@ function findDate(text: string): string | null {
 /** OCR confuses l/1 and o/0 inside words: "Komp1it" → Komplit, "Ko0pi" → Koopi. Sizes (2L, 500ml) and 7UP are left alone. */
 export function fixLetters(s: string) {
   const vowel = (c: string) => /[aeiouAEIOU]/.test(c);
+  // (No lookbehind: older iPhones' WebKit can't parse it.)
   return s
-    .replace(/(?<=[A-Za-z])1(?=[A-Za-z])/g, (_, i: number, str: string) => (vowel(str[i + 1]) || vowel(str[i - 1]) ? 'l' : 'i'))
-    .replace(/(?<=[A-Za-z])0(?=[A-Za-z])/g, (_, i: number, str: string) => (str[i - 1] === str[i - 1].toUpperCase() && str[i + 1] === str[i + 1].toUpperCase() ? 'O' : 'o'))
-    .replace(/(?<=[a-z])5(?=[a-z])/g, 's');
+    .replace(/([A-Za-z])1(?=[A-Za-z])/g, (_, a: string, i: number, str: string) => a + (vowel(str[i + 2]) || vowel(a) ? 'l' : 'i'))
+    .replace(/([A-Za-z])0(?=[A-Za-z])/g, (_, a: string, i: number, str: string) => a + (a === a.toUpperCase() && str[i + 2] === str[i + 2].toUpperCase() ? 'O' : 'o'))
+    .replace(/([a-z])5(?=[a-z])/g, '$1s');
 }
 
 const tidy = (s: string) => {
@@ -317,7 +318,7 @@ export function parseReceipt(text: string, cats: Category[]): Receipt {
     const l = lines[i], p = priceAt(i);
     const svc = SERVICE.test(l), tx = !svc && TAX.test(l) && !/incl|termasuk|inkl/i.test(l);
     if (!svc && !tx) continue;
-    const pct = l.match(/(?<![\d.,])(\d{1,2}(?:[.,]\d{1,3})?)\s?%/)?.[1];
+    const pct = l.match(/(?:^|[^\d.,])(\d{1,2}(?:[.,]\d{1,3})?)\s?%/)?.[1];
     if (svc) { if (p && p.value > 0) charges.service += p.value; if (pct) charges.servicePct = Number(pct.replace(',', '.')); }
     else { if (p && p.value > 0) charges.tax += p.value; if (pct) charges.taxPct = Number(pct.replace(',', '.')); }
   }

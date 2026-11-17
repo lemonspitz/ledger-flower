@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useRef, useState, useSyncExternalStore } from 'react';
 import QRCode from 'qrcode';
 import { Capacitor } from '@capacitor/core';
+import { StatusBar, Style } from '@capacitor/status-bar';
 import { Directory, Encoding, Filesystem } from '@capacitor/filesystem';
 import { Share } from '@capacitor/share';
 import { NUM_FORMATS, curMonth, moneyFormatter, toCsv, useModel, type Model } from './calc';
@@ -60,6 +61,18 @@ export default function App() {
     if (prefs.theme === 'auto') delete r.dataset.theme; else r.dataset.theme = prefs.theme;
     r.dataset.plant = plant;
   }, [prefs.theme, plant]);
+  // Phone status bar (clock, battery): light text on the dark theme, dark text on the light one.
+  useEffect(() => {
+    if (!Capacitor.isNativePlatform()) return;
+    const mq = window.matchMedia('(prefers-color-scheme: dark)');
+    const apply = () => {
+      const dark = prefs.theme === 'dark' || (prefs.theme === 'auto' && mq.matches);
+      void StatusBar.setStyle({ style: dark ? Style.Dark : Style.Light }).catch(() => {});
+    };
+    apply();
+    mq.addEventListener('change', apply);
+    return () => mq.removeEventListener('change', apply);
+  }, [prefs.theme]);
   useEffect(() => {
     if (prefs.code) void sync.start(prefs.code, prefs.relays); else sync.stop();
   }, [prefs.code, prefs.relays]);

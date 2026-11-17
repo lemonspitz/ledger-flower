@@ -12,7 +12,8 @@
     "dist:mac": "npm run build && electron-builder --mac --x64 --arm64 && ./scripts/sign-mac.sh",
     "android": "npm run build && cap sync android && cd android && ./gradlew assembleDebug",
     "relay": "node server/relay.mjs",
-    "test": "tsx test/receipts.test.ts"
+    "test": "tsx test/receipts.test.ts",
+    "ios": "npm run build && cap sync ios && cap open ios"
   },
   "author": {
     "name": "lemonspitz",
@@ -84,5 +85,9 @@
     "publish": null,
     "copyright": "Copyright \u00a9 2026 lemonspitz"
   },
-  "homepage": "https://github.com/lemonspitz/ledger-leaf"
+  "homepage": "https://github.com/lemonspitz/ledger-leaf",
+  "dependencies": {
+    "@capacitor/ios": "^8.6.2",
+    "@capacitor/status-bar": "^8.0.4"
+  }
 }
