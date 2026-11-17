@@ -248,6 +248,6 @@ export const sync = new SyncEngine();
 export interface LocalPrefs { code?: string; relays: string[]; theme: 'auto' | 'light' | 'dark'; plant: string }
 const LKEY = 'll.local.v1';
 export function loadPrefs(): LocalPrefs {
-  try { return { relays: DEFAULT_RELAYS, theme: 'auto', plant: 'monstera', ...JSON.parse(localStorage.getItem(LKEY) || '{}') }; } catch { return { relays: DEFAULT_RELAYS, theme: 'auto', plant: 'monstera' }; }
+  try { return { relays: DEFAULT_RELAYS, theme: 'auto', plant: 'iris', ...JSON.parse(localStorage.getItem(LKEY) || '{}') }; } catch { return { relays: DEFAULT_RELAYS, theme: 'auto', plant: 'iris' }; }
 }
 export function savePrefs(p: LocalPrefs) { localStorage.setItem(LKEY, JSON.stringify(p)); }

@@ -1,6 +1,6 @@
 {
-  "name": "ledgerleaf",
-  "version": "1.10.2",
+  "name": "ledger-flower",
+  "version": "1.11.0",
   "description": "Personal budgeting with real-time encrypted sync",
   "main": "electron/main.cjs",
   "scripts": {
@@ -44,12 +44,12 @@
     "vite": "^8.3.8",
     "ws": "^8.23.0"
   },
-  "productName": "Ledgerleaf",
+  "productName": "Ledger Flower",
   "private": true,
   "type": "module",
   "build": {
     "appId": "app.ledgerleaf.budget",
-    "productName": "Ledgerleaf",
+    "productName": "Ledger Flower",
     "files": [
       "dist/**",
       "electron/**",
@@ -73,7 +73,7 @@
       "perMachine": false
     },
     "portable": {
-      "artifactName": "Ledgerleaf-${version}-windows-portable.exe"
+      "artifactName": "Ledger-Flower-${version}-windows-portable.exe"
     },
     "mac": {
       "target": [
@@ -81,13 +81,13 @@
       ],
       "category": "public.app-category.finance",
       "identity": null,
-      "artifactName": "Ledgerleaf-${version}-mac-${arch}.zip",
+      "artifactName": "Ledger-Flower-${version}-mac-${arch}.zip",
       "icon": "build/icon-mac.png"
     },
     "publish": null,
     "copyright": "Copyright \u00a9 2026 lemonspitz"
   },
-  "homepage": "https://github.com/lemonspitz/ledger-leaf",
+  "homepage": "https://github.com/lemonspitz/ledger-flower",
   "dependencies": {
     "@capacitor/ios": "^8.6.2",
     "@capacitor/status-bar": "^8.0.4"

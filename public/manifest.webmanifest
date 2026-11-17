@@ -1,13 +1,13 @@
 {
-  "name": "Ledgerleaf",
-  "short_name": "Ledgerleaf",
+  "name": "Ledger Flower",
+  "short_name": "Ledger Flower",
   "description": "Budgeting with real-time encrypted sync, receipt scanning and bill splitting.",
   "start_url": "./",
   "scope": "./",
   "display": "standalone",
   "orientation": "portrait-primary",
-  "background_color": "#eef6e6",
-  "theme_color": "#1f8a4c",
+  "background_color": "#f4f1fb",
+  "theme_color": "#5b3fc4",
   "categories": ["finance", "productivity"],
   "icons": [
     { "src": "icons/icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any" },

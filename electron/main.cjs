@@ -1,11 +1,13 @@
 const { app, BrowserWindow, shell, Menu } = require('electron');
 const path = require('node:path');
 
+// Keep using the data folder from when the app was called Ledgerleaf, so renaming it loses nothing.
+app.setPath('userData', path.join(app.getPath('appData'), 'Ledgerleaf'));
 if (!app.requestSingleInstanceLock()) app.quit();
 let win;
 function create() {
   win = new BrowserWindow({
-    width: 1240, height: 820, minWidth: 380, minHeight: 560, title: 'Ledgerleaf', autoHideMenuBar: true,
+    width: 1240, height: 820, minWidth: 380, minHeight: 560, title: 'Ledger Flower', autoHideMenuBar: true,
     backgroundColor: '#f9f9f7',
     webPreferences: { contextIsolation: true, nodeIntegration: false, sandbox: true },
   });

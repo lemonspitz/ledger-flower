@@ -54,7 +54,7 @@ export function Dashboard({ m, month, setMonth, open, go }: ViewProps) {
       <div className="page">
         <header className="page-head"><h1>Overview</h1></header>
         <Card>
-          <Empty icon="🌱" title="Welcome to Ledgerleaf">
+          <Empty icon="🌸" title="Welcome to Ledger Flower">
             <p>Add your first transaction to start seeing where your money goes — or load sample data to explore every screen first.</p>
             <div className="empty-actions">
               <button className="btn primary" onClick={() => open({ k: 'tx' })}><Icon name="plus" size={16} />Add a transaction</button>

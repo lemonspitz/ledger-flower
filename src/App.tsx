@@ -10,7 +10,8 @@ import { Dialogs, type Dialog } from './forms';
 import { flushSave, getData, replaceAll, put, runRecurring, type Data, type Settings, type NumFmt } from './store';
 import { DEFAULT_RELAYS, loadPrefs, newSyncCode, normalizeCode, savePrefs, sync, type LocalPrefs } from './sync';
 import { Card, Field, Icon, Seg } from './ui';
-import { Backdrop, PlantArt, THEMES, THEME_IDS, type ThemeId } from './themes';
+import { Backdrop, FlowerArt, artVars, swatchBg } from './themes';
+import { FLOWERS, flowerById, resolveFlower } from './flowers';
 import { Accounts, Budgets, Dashboard, Goals, Insights, NO_FILTER, Transactions, type TxFilter, type ViewProps } from './views';
 
 const NAV: [string, string, string][] = [
@@ -55,7 +56,7 @@ export default function App() {
   const [prefs, setPrefsState] = useState<LocalPrefs>(loadPrefs);
   const setPrefs = useCallback((p: LocalPrefs) => { savePrefs(p); setPrefsState(p); }, []);
 
-  const plant = (THEME_IDS.includes(prefs.plant as ThemeId) ? prefs.plant : 'monstera') as ThemeId;
+  const plant = resolveFlower(prefs.plant);
   useEffect(() => {
     const r = document.documentElement;
     if (prefs.theme === 'auto') delete r.dataset.theme; else r.dataset.theme = prefs.theme;
@@ -126,17 +127,17 @@ export default function App() {
 
   return (
     <>
-    <Backdrop plant={plant} />
+    <Backdrop flower={plant} />
     <div className="app">
       <aside className="side">
-        <div className="brand"><img className="logo" src="./icon.svg" alt="" width={26} height={26} />Ledgerleaf</div>
+        <div className="brand"><img className="logo" src="./icon.svg" alt="" width={26} height={26} />Ledger Flower</div>
         <nav>{NAV.map(([id, label, icon]) => <button key={id} className={view === id ? 'on' : ''} onClick={() => go(id)}><Icon name={icon} />{label}</button>)}</nav>
         <button className="btn primary add" onClick={() => setDialog({ k: 'tx' })}><Icon name="plus" size={16} />Add transaction</button>
         <SyncBadge onClick={() => go('settings')} />
         <p className="credit side-credit">Made by <a href={AUTHOR_URL} target="_blank" rel="noreferrer">{AUTHOR}</a></p>
       </aside>
       <main>
-        <div className="mobile-top"><div className="brand"><img className="logo" src="./icon.svg" alt="" width={26} height={26} />Ledgerleaf</div><SyncBadge onClick={() => go('settings')} /></div>
+        <div className="mobile-top"><div className="brand"><img className="logo" src="./icon.svg" alt="" width={26} height={26} />Ledger Flower</div><SyncBadge onClick={() => go('settings')} /></div>
         {view === 'overview' && <Dashboard {...props} />}
         {view === 'transactions' && <Transactions {...props} filter={filter} setFilter={setFilter} />}
         {view === 'budgets' && <Budgets {...props} />}
@@ -192,6 +193,7 @@ function MoreSheet({ view, onPick, onClose, pull, animateIn }: { view: string; o
 }
 
 function SettingsView({ m, prefs, setPrefs, open }: { m: Model; prefs: LocalPrefs; setPrefs: (p: LocalPrefs) => void; open: (d: Dialog) => void }) {
+  const plant = resolveFlower(prefs.plant);
   // Keep the other preferences in the record when changing one of them.
   const saveSettings = (patch: Partial<Settings>) => put('settings', { ...(m.data.settings.settings as Settings | undefined), id: 'settings', currency: m.currency, ...patch } as Settings);
   const [confirm, setConfirm] = useState<'demo' | 'erase' | null>(null);
@@ -199,7 +201,7 @@ function SettingsView({ m, prefs, setPrefs, open }: { m: Model; prefs: LocalPref
     const d = JSON.parse(t) as Partial<Data>;
     if (!d || typeof d !== 'object' || !d.tx || !d.accounts) throw new Error('not a backup');
     replaceAll(d);
-  }).catch(() => alert('That file is not a Ledgerleaf backup.'));
+  }).catch(() => alert('That file is not a Ledger Flower backup.'));
   return (
     <div className="page narrow">
       <header className="page-head"><h1>Settings</h1></header>
@@ -227,23 +229,23 @@ function SettingsView({ m, prefs, setPrefs, open }: { m: Model; prefs: LocalPref
             </Field>
           </div>
           <div className="field">
-            <span>Plant theme</span>
-            <div className="themes" role="radiogroup" aria-label="Plant theme">
-              {THEMES.map((x) => (
-                <button key={x.id} type="button" role="radio" aria-checked={prefs.plant === x.id} className={`theme-opt${(prefs.plant || 'monstera') === x.id ? ' on' : ''}`} onClick={() => setPrefs({ ...prefs, plant: x.id })}
-                  style={{ ['--leaf1' as string]: x.light.leaf[0], ['--leaf2' as string]: x.light.leaf[1], ['--vein' as string]: `color-mix(in srgb, ${x.light.leaf[0]} 72%, #0b2014)`, ['--page' as string]: x.light.bg[1] }}>
-                  <span className="theme-swatch" style={{ background: `linear-gradient(135deg, ${x.light.bg[0]}, ${x.light.bg[2]})` }}>
-                    <PlantArt plant={x.id} />
-                    <i style={{ background: x.light.accent }} />
+            <span>Flower theme</span>
+            <div className="themes" role="radiogroup" aria-label="Flower theme">
+              {FLOWERS.map((f) => (
+                <button key={f.id} type="button" role="radio" aria-checked={plant === f.id} className={`theme-opt${plant === f.id ? ' on' : ''}`} onClick={() => setPrefs({ ...prefs, plant: f.id })} style={artVars(f)}>
+                  <span className="theme-swatch" style={{ background: swatchBg(f) }}>
+                    <FlowerArt flower={f.id} />
+                    <i style={{ background: f.accent[0] }} />
                   </span>
-                  <b>{x.name}</b>
-                  <small>{x.blurb}</small>
-                  {(prefs.plant || 'monstera') === x.id && <span className="check"><Icon name="check" size={14} /></span>}
+                  <b>{f.name}</b>
+                  <small>{f.blurb}</small>
+                  {plant === f.id && <span className="check"><Icon name="check" size={14} /></span>}
                 </button>
               ))}
             </div>
             <small>Only on this device.</small>
           </div>
+          <FlowerInfo id={plant} />
         </div>
       </Card>
       <Card title="Payment methods" sub="Cards and QR banks or apps you pay with. Pick one when adding an expense."
@@ -270,8 +272,8 @@ function SettingsView({ m, prefs, setPrefs, open }: { m: Model; prefs: LocalPref
       </Card>
       <Card title="Your data" sub="Everything is stored on this device, and on your other devices if sync is on.">
         <div className="btn-row">
-          <button className="btn" onClick={() => void download(`ledgerleaf-${new Date().toISOString().slice(0, 10)}.csv`, toCsv(m), 'text/csv')}>Export CSV</button>
-          <button className="btn" onClick={() => void download(`ledgerleaf-backup-${new Date().toISOString().slice(0, 10)}.json`, JSON.stringify(getData()), 'application/json')}>Download backup</button>
+          <button className="btn" onClick={() => void download(`ledger-flower-${new Date().toISOString().slice(0, 10)}.csv`, toCsv(m), 'text/csv')}>Export CSV</button>
+          <button className="btn" onClick={() => void download(`ledger-flower-backup-${new Date().toISOString().slice(0, 10)}.json`, JSON.stringify(getData()), 'application/json')}>Download backup</button>
           <label className="btn">Restore backup<input type="file" accept="application/json,.json" hidden onChange={(e) => { const f = e.target.files?.[0]; if (f) void restore(f); e.target.value = ''; }} /></label>
         </div>
         <div className="btn-row">
@@ -290,13 +292,35 @@ function SettingsView({ m, prefs, setPrefs, open }: { m: Model; prefs: LocalPref
         <div className="about">
           <img src="./icon.svg" alt="" width={56} height={56} />
           <div>
-            <b>Ledgerleaf {APP_VERSION}</b>
+            <b>Ledger Flower {APP_VERSION}</b>
             <p>Created by <a href={AUTHOR_URL} target="_blank" rel="noreferrer">{AUTHOR}</a></p>
             <small className="muted">Your data stays on your devices · © {new Date().getFullYear()} {AUTHOR}</small>
           </div>
         </div>
       </Card>
     </div>
+  );
+}
+
+function FlowerInfo({ id }: { id: string }) {
+  const f = flowerById(id);
+  return (
+    <section className="flower-info" aria-label={`About the ${f.name}`}>
+      <div className="flower-hero" style={{ ...artVars(f), background: swatchBg(f) }}><FlowerArt flower={f.id} /></div>
+      <div className="flower-text">
+        <small className="eyebrow">About your flower</small>
+        <h3>{f.name}</h3>
+        <p className="latin"><i>{f.latin}</i> · {f.family}</p>
+        <dl>
+          <dt>Origin</dt><dd>{f.origin}</dd>
+          <dt>Where to find it</dt><dd>{f.where}</dd>
+          <dt>In bloom</dt><dd>{f.season}</dd>
+          <dt>Meaning</dt><dd>{f.meaning}</dd>
+        </dl>
+        <b className="facts-title">Did you know?</b>
+        <ul className="facts">{f.facts.map((x) => <li key={x}>{x}</li>)}</ul>
+      </div>
+    </section>
   );
 }
 
@@ -334,11 +358,11 @@ function SyncCard({ prefs, setPrefs }: { prefs: LocalPrefs; setPrefs: (p: LocalP
           {open > 0 && s.initial && !s.received && !s.pending && (
             <div className="sync-alone">
               <b>Nothing has come in from another device yet</b>
-              <p>Your code starts with <code>{prefs.code.slice(0, 4)}</code>. Check that your other device shows the same code (Settings → Sync → Show sync code) and has Ledgerleaf open with sync on.</p>
+              <p>Your code starts with <code>{prefs.code.slice(0, 4)}</code>. Check that your other device shows the same code (Settings → Sync → Show sync code) and has Ledger Flower open with sync on.</p>
               <p>If the codes differ, “Turn on sync” was pressed on both. Here, tap “Stop syncing this device”, then use <b>Join</b> with the code from the device that has your data. Nothing on this device is lost.</p>
             </div>
           )}
-          <p className="hint">To add a device, install Ledgerleaf on it, open Settings → Sync and enter this code. Anyone with the code can read your budget, so share it only with your own devices.</p>
+          <p className="hint">To add a device, install Ledger Flower on it, open Settings → Sync and enter this code. Anyone with the code can read your budget, so share it only with your own devices.</p>
           {show ? (
             <div className="code-box">
               {qr && <img src={qr} alt="Sync code as QR" width={140} height={140} />}

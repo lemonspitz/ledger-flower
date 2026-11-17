@@ -3,9 +3,9 @@
 <plist version="1.0">
 <dict>
 	<key>NSCameraUsageDescription</key>
-	<string>Ledgerleaf uses the camera to scan receipts in Bill &amp; split. Photos are read on your iPhone and never uploaded.</string>
+	<string>Ledger Flower uses the camera to scan receipts in Bill &amp; split. Photos are read on your iPhone and never uploaded.</string>
 	<key>NSPhotoLibraryUsageDescription</key>
-	<string>Ledgerleaf opens receipt photos you choose so it can read the items and prices. Photos stay on your iPhone.</string>
+	<string>Ledger Flower opens receipt photos you choose so it can read the items and prices. Photos stay on your iPhone.</string>
 	<key>ITSAppUsesNonExemptEncryption</key>
 	<false/>
   <key>CAPACITOR_DEBUG</key>
@@ -13,7 +13,7 @@
 	<key>CFBundleDevelopmentRegion</key>
 	<string>en</string>
 	<key>CFBundleDisplayName</key>
-        <string>Ledgerleaf</string>
+        <string>Ledger Flower</string>
 	<key>CFBundleExecutable</key>
 	<string>$(EXECUTABLE_NAME)</string>
 	<key>CFBundleIdentifier</key>

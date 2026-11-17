@@ -8,9 +8,9 @@ for zip in *-mac-*.zip; do
   work=$(mktemp -d)
   unzip -q "$zip" -d "$work"
   # No certificate given → ad-hoc signature for every helper, framework and the app, with sealed resources.
-  rcodesign sign "$work/Ledgerleaf.app" >/dev/null
+  rcodesign sign "$work/Ledger Flower.app" >/dev/null
   rm "$zip"
-  (cd "$work" && zip -qry "$OLDPWD/$zip" Ledgerleaf.app)   # -y keeps the framework symlinks
+  (cd "$work" && zip -qry "$OLDPWD/$zip" "Ledger Flower.app")   # -y keeps the framework symlinks
   rm -rf "$work"
   echo "signed $zip"
 done

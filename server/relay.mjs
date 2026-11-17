@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-// Optional self-hosted sync relay for Ledgerleaf.
+// Optional self-hosted sync relay for Ledger Flower.
 //
 //   node server/relay.mjs            → ws://0.0.0.0:7447
 //   PORT=8080 DATA=./relay.json node server/relay.mjs
@@ -60,4 +60,4 @@ wss.on('connection', (ws) => {
     }
   });
 });
-console.log(`Ledgerleaf relay listening on ws://0.0.0.0:${PORT} (data: ${FILE})`);
+console.log(`Ledger Flower relay listening on ws://0.0.0.0:${PORT} (data: ${FILE})`);

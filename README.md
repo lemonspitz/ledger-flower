@@ -1,4 +1,4 @@
-# Ledgerleaf
+# Ledger Flower
 
 A personal budgeting app for Android, Windows and macOS that keeps every device
 in step in real time. One codebase (React + TypeScript), packaged with
@@ -18,13 +18,13 @@ Capacitor for Android and Electron for desktop.
 - **Insights** – 3/6/12-month view: balance trend, income vs spending, category ranking, weekday pattern, per-category trends, largest expenses, and plain-language observations.
 - **Goals** – savings targets with progress and the monthly amount needed to hit a date.
 - **Accounts & recurring** – multiple accounts with balances; bills and paychecks that enter themselves.
-- **Plant themes** – a frosted-glass design with large plant illustrations behind the glass, in 10 themes (Monstera, Eucalyptus, Fern, Bamboo, Sunflower, Maple, Sakura, Lavender, Blue Lotus, Olive), each in light and dark. Chart colours in every theme use pairs checked for colour-blind readability. Pick one under Settings → Preferences.
+- **Flower themes** – a frosted-glass design with large flower illustrations behind the glass, in 20 themes (Iris, Rose, Sunflower, Cherry Blossom, Lavender, Sacred Lotus, Tulip, Moon Orchid, Jasmine, Hibiscus, Madonna Lily, Daisy, Poppy, Peony, Magnolia, Frangipani, Bird of Paradise, Camellia, Bluebell, Marigold), each in light and dark. Each comes with a short field guide: Latin name, family, origin, where it grows, bloom season, meaning and facts. Chart colours in every theme use pairs checked for colour-blind readability. Pick one under Settings → Preferences.
 - **Number format** – Settings → Preferences: 1,234.56 · 1.234,56 · 1 234,56 · 1'234.56 · 1,23,456.78, or the device's own style, plus decimals Automatic/Always/Never (Automatic hides cents for Rupiah and similar). Typed amounts follow the same style, so with 1.234,56 typing 1.000 means one thousand.
 - **Data** – CSV export, JSON backup/restore, light and dark themes, 30+ currencies.
 
 ## Web version
 
-**https://lemonspitz.github.io/ledger-leaf/** — the same app in any browser, published automatically from `main` by `.github/workflows/pages.yml`. It can be installed (Safari: Share → Add to Home Screen; Chrome/Edge: Install app) and works offline after the first visit; the receipt reader is stored on the device the first time you scan. Data lives in that browser and syncs with your other devices through your sync code. Tip for iPhone: use it from the Home Screen icon, since Safari can clear data of websites not opened for a while, while installed web apps keep theirs.
+**https://lemonspitz.github.io/ledger-flower/** — the same app in any browser, published automatically from `main` by `.github/workflows/pages.yml`. It can be installed (Safari: Share → Add to Home Screen; Chrome/Edge: Install app) and works offline after the first visit; the receipt reader is stored on the device the first time you scan. Data lives in that browser and syncs with your other devices through your sync code. Tip for iPhone: use it from the Home Screen icon, since Safari can clear data of websites not opened for a while, while installed web apps keep theirs.
 
 ## Sync
 
@@ -73,8 +73,8 @@ npm run dist:mac
 npm run android
 ```
 
-- Windows build output: `release/Ledgerleaf Setup 1.10.1.exe` (installer; shipped here renamed to `Ledgerleaf-1.10.1-windows-setup.exe`) and a portable `.exe`. Building on Linux needs Wine.
-- macOS output: `release/Ledgerleaf-1.10.1-mac-arm64.zip` (Apple silicon) and `-x64.zip` (Intel). When building on Linux, `scripts/sign-mac.sh` (run by `npm run dist:mac`) adds an ad-hoc signature with [rcodesign](https://github.com/indygreg/apple-platform-rs) (`cargo install apple-codesign --locked`); Apple-silicon Macs won't launch an unsigned app.
+- Windows build output: `release/Ledger Flower Setup 1.11.0.exe` (installer) and a portable `.exe`. Building on Linux needs Wine.
+- macOS output: `release/Ledger-Flower-1.11.0-mac-arm64.zip` (Apple silicon) and `-x64.zip` (Intel). When building on Linux, `scripts/sign-mac.sh` (run by `npm run dist:mac`) adds an ad-hoc signature with [rcodesign](https://github.com/indygreg/apple-platform-rs) (`cargo install apple-codesign --locked`); Apple-silicon Macs won't launch an unsigned app.
 - Android output: `android/app/build/outputs/apk/debug/app-debug.apk`. Needs the Android SDK (`ANDROID_HOME`) and JDK 21.
 
 ### iPhone (iOS 16.4 or later)
@@ -97,7 +97,7 @@ The desktop apps are unsigned. Windows SmartScreen will ask for confirmation
 (More info → Run anyway). On macOS, after unzipping, clear the download flag once:
 
 ```bash
-xattr -cr /Applications/Ledgerleaf.app
+xattr -cr "/Applications/Ledger Flower.app"
 ```
 
 ## Layout
@@ -108,9 +108,13 @@ xattr -cr /Applications/Ledgerleaf.app
 | `src/sync.ts` | encrypted relay sync engine |
 | `src/split.ts`, `src/bill.tsx` | bill calculator, splitting maths and the Bill & split screen |
 | `src/receipt.ts` | on-device receipt OCR and parsing |
-| `src/themes.tsx` | plant themes, plant drawings and the leaf backdrop |
+| `src/flowers.ts` | the 20 flower themes: colours and field-guide info |
+| `src/themes.tsx` | theme CSS, flower drawings and the backdrop |
 | `src/calc.ts`, `src/charts.tsx` | derived figures and SVG charts |
 | `src/views.tsx`, `src/forms.tsx`, `src/App.tsx` | screens, dialogs, shell and settings |
 | `electron/main.cjs` | desktop window |
 | `android/` | Capacitor Android project |
 | `server/relay.mjs` | optional self-hosted sync relay |
+
+
+Ledger Flower was called Ledgerleaf before version 1.11. Updating keeps your data: app IDs, storage and sync codes are unchanged.
