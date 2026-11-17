@@ -78,8 +78,17 @@ function findDate(text: string): string | null {
   return null;
 }
 
+/** OCR confuses l/1 and o/0 inside words: "Komp1it" → Komplit, "Ko0pi" → Koopi. Sizes (2L, 500ml) and 7UP are left alone. */
+export function fixLetters(s: string) {
+  const vowel = (c: string) => /[aeiouAEIOU]/.test(c);
+  return s
+    .replace(/(?<=[A-Za-z])1(?=[A-Za-z])/g, (_, i: number, str: string) => (vowel(str[i + 1]) || vowel(str[i - 1]) ? 'l' : 'i'))
+    .replace(/(?<=[A-Za-z])0(?=[A-Za-z])/g, (_, i: number, str: string) => (str[i - 1] === str[i - 1].toUpperCase() && str[i + 1] === str[i + 1].toUpperCase() ? 'O' : 'o'))
+    .replace(/(?<=[a-z])5(?=[a-z])/g, 's');
+}
+
 const tidy = (s: string) => {
-  const t = s.replace(/\s+/g, ' ').replace(/^[^A-Za-zÀ-ÿ0-9]+|[^A-Za-zÀ-ÿ0-9%)]+$/g, '').trim();
+  const t = fixLetters(s).replace(/\s+/g, ' ').replace(/^[^A-Za-zÀ-ÿ0-9]+|[^A-Za-zÀ-ÿ0-9%)]+$/g, '').trim();
   return t === t.toUpperCase() ? t.toLowerCase().replace(/(^|[\s&/-])([a-zà-ÿ])/g, (_, a, b) => a + b.toUpperCase()) : t;
 };
 
@@ -225,14 +234,29 @@ function reconcile(items: (ReceiptItem & { alts: number[] })[], subtotal: number
   }
 }
 
+/**
+ * The shop's name: the best-written line near the top. Logos come out of OCR as garbage ("Sed} uk Yb"),
+ * so lines are scored by how much of them is real words, and the printed name line usually wins.
+ */
+function findMerchant(lines: string[]) {
+  let best = '', bestScore = 0;
+  for (const raw of lines.slice(0, 8)) {
+    if (NOISE.test(raw) || /receipt|invoice|welcome|thank|www\.|^\W*(jl|jalan|street|st|road|rd|no)\b\.?/i.test(raw) || /\d{3,}/.test(raw)) continue;
+    const line = cleanName(raw);
+    const words = line.split(/\s+/).filter(Boolean);
+    const good = words.filter((w) => /^[A-Za-zÀ-ÿ'’.]{2,}$/.test(w) || w === '&' || w === '-');
+    const bad = words.length - good.length;
+    const letters = good.join('').replace(/[^A-Za-zÀ-ÿ]/g, '').length;
+    const score = letters - 6 * bad;
+    if (good.filter((w) => w.length >= 3).length >= 1 && letters >= 4 && score > bestScore) { best = line; bestScore = score; }
+  }
+  return best.slice(0, 60);
+}
+
 export function parseReceipt(text: string, cats: Category[]): Receipt {
   const lines = text.split('\n').map((l) => l.trim()).filter(Boolean);
   // Merchant: first line near the top that is mostly letters.
-  const merchantLine = lines.slice(0, 6).find((l) => {
-    const letters = (l.match(/[A-Za-zÀ-ÿ]/g) ?? []).length;
-    return letters >= 3 && letters / l.replace(/\s/g, '').length > 0.6 && !/receipt|invoice|welcome|thank|tel[:.]|www\.|^date/i.test(l);
-  });
-  const merchant = merchantLine ? tidy(merchantLine).slice(0, 60) : '';
+  const merchant = findMerchant(lines);
 
   // Receipts either print cents everywhere (3.49) or not at all (Rp 17.500, ¥598). Work out which,
   // so stray whole numbers (quantities, sizes, register numbers) aren't taken for prices.

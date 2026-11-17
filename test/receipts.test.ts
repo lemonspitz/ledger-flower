@@ -28,3 +28,18 @@ process.exitCode = fail ? 1 : 0;
   const names = r.items.map((i) => i.name).join(' | ');
   console.log(names === 'Bakso Kuah | Es Teh Manis | Whole Milk 2l | Cincau Sedjuk' ? 'PASS' : 'FAIL', 'speck clean-up keeps real names and sizes:', names);
 }
+{
+  // Shop name from a logo that OCR garbles, and l/1 o/0 confusion inside dish names
+  const r = parseReceipt(`Sed} uk Yb
+BAKMI & KOPI   vay
+Sedjuk Bakmi & Kopi - Posbloc   gm
+Date : 14-10-2026 20:16
+Table : 15
+Bakmi Ayam Oven Komp1it
+1x @55.000   55.000
+Ko0pi Susu 2L   18.000
+Teh Botol 7UP   12.000
+Total   85.000`, []);
+  const ok = r.merchant === 'Sedjuk Bakmi & Kopi - Posbloc' && r.items.map((i) => i.name).join(' | ') === 'Bakmi Ayam Oven Komplit | Koopi Susu 2L | Teh Botol 7UP';
+  console.log(ok ? 'PASS' : 'FAIL', 'shop name skips a garbled logo; l/1 and o/0 fixed in names:', r.merchant, '/', r.items.map((i) => i.name).join(' | '));
+}
