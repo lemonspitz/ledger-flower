@@ -25,6 +25,7 @@ permissions:
 
 concurrency:
   group: release-${{ github.event.inputs.tag || github.ref_name }}
+  cancel-in-progress: true
 
 jobs:
   check:
@@ -167,8 +168,10 @@ jobs:
           path: out/*
 
   publish:
-    needs: [check, android, windows, mac]
-    if: ${{ !cancelled() && needs.check.outputs.go == 'true' && needs.windows.result == 'success' && needs.mac.result == 'success' }}
+    # Publishes once Windows (and Android, when its key is set) are built; Mac runners can queue for a
+    # long time, so the Mac files are added by the add-mac job when they're ready.
+    needs: [check, android, windows]
+    if: ${{ !cancelled() && needs.check.outputs.go == 'true' && needs.windows.result == 'success' && needs.android.result != 'failure' }}
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -200,3 +203,18 @@ jobs:
           else
             gh release create "$TAG" files/* --target "$REF" --title "Ledger Flower ${TAG#v}" --notes-file notes.md
           fi
+
+  add-mac:
+    needs: [check, publish, mac]
+    if: ${{ !cancelled() && needs.publish.result == 'success' && needs.mac.result == 'success' }}
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          name: mac
+          path: files
+      - name: Add the Mac files to the release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TAG: ${{ needs.check.outputs.tag }}
+        run: gh release upload "$TAG" files/* --clobber --repo "$GITHUB_REPOSITORY"
