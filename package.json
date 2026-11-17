@@ -1,6 +1,6 @@
 {
   "name": "ledgerleaf",
-  "version": "1.7.0",
+  "version": "1.8.0",
   "description": "Personal budgeting with real-time encrypted sync",
   "main": "electron/main.cjs",
   "scripts": {
@@ -11,7 +11,8 @@
     "dist:win": "npm run build && electron-builder --win --x64",
     "dist:mac": "npm run build && electron-builder --mac --x64 --arm64 && ./scripts/sign-mac.sh",
     "android": "npm run build && cap sync android && cd android && ./gradlew assembleDebug",
-    "relay": "node server/relay.mjs"
+    "relay": "node server/relay.mjs",
+    "test": "tsx test/receipts.test.ts"
   },
   "author": {
     "name": "lemonspitz",
@@ -37,6 +38,7 @@
     "react": "^19.3.1",
     "react-dom": "^19.3.1",
     "tesseract.js": "^7.0.0",
+    "tsx": "^4.23.15",
     "typescript": "^7.0.2",
     "vite": "^8.3.8",
     "ws": "^8.23.0"

@@ -1,9 +1,10 @@
 // Bill calculator & splitter: type each menu item with its base price, the app adds service and tax,
 // and (optionally) splits the bill between friends. Opened from "New transaction", pre-filled after a scan.
-import { useMemo, useState } from 'react';
+import { useMemo, useRef, useState } from 'react';
 import { Capacitor } from '@capacitor/core';
 import { Share } from '@capacitor/share';
 import { fmtInput, parseAmount, type Model } from './calc';
+import { scanReceipt, type Receipt } from './receipt';
 import { computeBill, ratesFromAmounts, type BillItem } from './split';
 import { put, txId, type PayKind, type Tx } from './store';
 import { Field, Icon, Modal, Seg } from './ui';
@@ -11,25 +12,14 @@ import { Field, Icon, Modal, Seg } from './ui';
 export const OWED_ACC = 'acc_owed';
 const ME = 'me';
 
-export interface BillInit {
-  place: string; date: string;
-  items: { name: string; amount: number }[];
-  charges?: { service: number; tax: number; servicePct?: number; taxPct?: number };
-  receiptTotal?: number;
-}
+export interface BillInit { place: string; date: string; items: { name: string; amount: number }[] }
 export interface BillCtx { acc: string; cat?: string; sub?: string; pm?: PayKind; pmid?: string }
 
 interface Row extends Omit<BillItem, 'unit'> { id: number; price: string }
 let seq = 0;
 const newRow = (name = '', price = '', who: string[] = [], qty = 1): Row => ({ id: ++seq, name, price, qty, who });
 const money = fmtInput;
-/** A scanned "2 ES TEH 40.000" line becomes 2 × 20.000. */
-function rowFromScan(name: string, amount: number): Row {
-  const m = name.match(/^(\d{1,2})\s*[xX×]?\s+(.{2,})$/);
-  const q = m ? Number(m[1]) : 1;
-  return q > 1 && amount % q === 0 ? newRow(m![2], money(amount / q), [], q) : newRow(name, money(amount));
-}
-const pctText = (n: number) => (n ? String(Math.round(n * 100) / 100) : '');
+const pctText = (n: number) => (n ? String(Math.round(n * 1000) / 1000) : '');
 
 export async function shareText(title: string, text: string): Promise<'shared' | 'copied' | 'failed'> {
   try {
@@ -39,19 +29,20 @@ export async function shareText(title: string, text: string): Promise<'shared' |
   try { await navigator.clipboard.writeText(text); return 'copied'; } catch { return 'failed'; }
 }
 
-export function BillSplit({ m, init, ctx, onBack, onSaved }: { m: Model; init: BillInit; ctx: BillCtx; onBack: () => void; onSaved: () => void }) {
-  const firstRates = useMemo(() => {
-    const c = init.charges;
-    if (!c) return { service: 0, tax: 0, taxOnService: true };
-    const sub = init.items.reduce((a, i) => a + i.amount, 0);
-    return ratesFromAmounts(sub, c.service, c.tax, { service: c.servicePct, tax: c.taxPct });
-  }, [init]);
+const MOBILE = Capacitor.isNativePlatform() || /Android|iPhone|iPad/i.test(navigator.userAgent);
+
+export function BillSplit({ m, init, ctx, onBack, onSaved, onScanned }: { m: Model; init: BillInit; ctx: BillCtx; onBack: () => void; onSaved: () => void; onScanned?: (r: Receipt) => void }) {
   const [place, setPlace] = useState(init.place);
   const [people, setPeople] = useState<string[]>([ME]);
-  const [rows, setRows] = useState<Row[]>(() => (init.items.length ? init.items.map((i) => rowFromScan(i.name, i.amount)) : [newRow()]));
-  const [service, setService] = useState(pctText(firstRates.service));
-  const [tax, setTax] = useState(pctText(firstRates.tax));
-  const [taxOnService, setTaxOnService] = useState(firstRates.taxOnService);
+  const [rows, setRows] = useState<Row[]>(() => (init.items.length ? init.items.map((i) => newRow(i.name, money(i.amount))) : [newRow()]));
+  const [service, setService] = useState('');
+  const [tax, setTax] = useState('');
+  const [taxOnService, setTaxOnService] = useState(true);
+  const [date, setDate] = useState(init.date);
+  const [receiptTotal, setReceiptTotal] = useState<number | undefined>();
+  const [scan, setScan] = useState<{ busy?: boolean; progress?: number; error?: string; done?: string; text?: string }>({});
+  const fileRef = useRef<HTMLInputElement>(null);
+  const camRef = useRef<HTMLInputElement>(null);
   const [discount, setDiscount] = useState('');
   const [paidAll, setPaidAll] = useState(true);
   const [adding, setAdding] = useState<string | null>(null);
@@ -76,11 +67,39 @@ export function BillSplit({ m, init, ctx, onBack, onSaved }: { m: Model; init: B
     setPeople([...people, name]); setAdding(''); // keep the box open to add the next friend
   };
   const removePerson = (k: string) => { setPeople(people.filter((p) => p !== k)); setRows(rows.map((r) => ({ ...r, who: r.who.filter((w) => w !== k) }))); };
-  const diff = init.receiptTotal ? res.total - init.receiptTotal : 0;
+  const diff = receiptTotal ? res.total - receiptTotal : 0;
+
+  // Scan a receipt: menu items with quantity and price each, plus service, tax and discount, go straight into the bill.
+  const onFile = async (file?: File) => {
+    if (!file) return;
+    setScan({ busy: true, progress: 0 });
+    try {
+      const r = await scanReceipt(file, m.categories, (p) => setScan({ busy: true, progress: p }));
+      if (!r.items.length) {
+        setScan({ text: r.text, error: r.text.trim() ? 'No menu items could be picked out. Check the text below, try a flatter, closer photo, or type the items in.' : 'No text could be read. Try a sharper, well-lit photo with the receipt filling the frame.' });
+        return;
+      }
+      const c = r.charges ?? { service: 0, tax: 0, discount: 0 };
+      const sub = r.items.reduce((a, i) => a + i.amount, 0);
+      const rates = ratesFromAmounts(sub - c.discount, c.service, c.tax, { service: c.servicePct, tax: c.taxPct });
+      setRows(r.items.map((i) => newRow(i.name, money(i.unit ?? i.amount), [], i.qty ?? 1)));
+      setService(pctText(rates.service)); setTax(pctText(rates.tax)); setTaxOnService(rates.taxOnService);
+      setDiscount(c.discount ? money(c.discount) : '');
+      if (r.merchant) setPlace(r.merchant);
+      setDate(r.date);
+      setReceiptTotal(r.total || undefined);
+      onScanned?.(r);
+      const n = r.items.reduce((a, i) => a + (i.qty ?? 1), 0);
+      setScan({ text: r.text, done: `Read ${r.items.length} menu line${r.items.length === 1 ? '' : 's'} (${n} item${n === 1 ? '' : 's'})${c.service || c.tax ? ', service and tax' : ''}${c.discount ? ' and a discount' : ''}. Check them below${friends.length ? '' : ', then add friends to split'}.` });
+    } catch (e) {
+      console.error('receipt scan', e);
+      setScan({ error: `The receipt couldn’t be read (${e instanceof Error ? e.message : String(e)}). You can still type the items in.` });
+    }
+  };
 
   const summary = () => {
     const f = m.fmt;
-    const head = [`${place || 'Bill'} — ${new Date(init.date + 'T00:00').toLocaleDateString(undefined, { day: 'numeric', month: 'short', year: 'numeric' })}`,
+    const head = [`${place || 'Bill'} — ${new Date(date + 'T00:00').toLocaleDateString(undefined, { day: 'numeric', month: 'short', year: 'numeric' })}`,
       `Subtotal ${f(res.subtotal)}${res.discount ? ` · Discount −${f(res.discount)}` : ''}${res.service ? ` · Service ${service}% ${f(res.service)}` : ''}${res.tax ? ` · Tax ${tax}% ${f(res.tax)}` : ''}`,
       `Total ${f(res.total)}`, ''];
     const body = res.people.filter((p) => p.total > 0).map((p) => [`${label(p.key)}: ${f(p.total)}`,
@@ -96,12 +115,12 @@ export function BillSplit({ m, init, ctx, onBack, onSaved }: { m: Model; init: B
     const mine = res.people.find((p) => p.key === ME)!;
     const where = place.trim() || 'Bill';
     const recs: Omit<Tx, 'u'>[] = [];
-    if (mine.total > 0) recs.push({ id: txId(init.date), date: init.date, type: 'expense', amount: mine.total, acc: ctx.acc, cat: ctx.cat, sub: ctx.sub, pm: ctx.pm, pmid: ctx.pmid, note: friends.length ? `${where} (my share)` : where });
+    if (mine.total > 0) recs.push({ id: txId(date), date, type: 'expense', amount: mine.total, acc: ctx.acc, cat: ctx.cat, sub: ctx.sub, pm: ctx.pm, pmid: ctx.pmid, note: friends.length ? `${where} (my share)` : where });
     if (paidAll) {
       const owedAcc = m.data.accounts[OWED_ACC];
       if (!owedAcc || owedAcc.del) put('accounts', { id: OWED_ACC, name: 'Owed to me', type: 'owed', opening: 0 });
       for (const p of res.people) if (p.key !== ME && p.total > 0)
-        recs.push({ id: txId(init.date), date: init.date, type: 'transfer', amount: p.total, acc: ctx.acc, toAcc: OWED_ACC, who: p.key, note: `${p.key} · ${where}` });
+        recs.push({ id: txId(date), date, type: 'transfer', amount: p.total, acc: ctx.acc, toAcc: OWED_ACC, who: p.key, note: `${p.key} · ${where}` });
     }
     if (!recs.length) { setError('Nothing to save: your share is zero and nobody owes you.'); return; }
     put('tx', ...recs);
@@ -117,6 +136,27 @@ export function BillSplit({ m, init, ctx, onBack, onSaved }: { m: Model; init: B
         <button type="button" className="btn primary" onClick={save}>Save</button>
       </>}>
       <div className="form bill">
+        <div className="scan">
+          <input ref={fileRef} type="file" accept="image/*" hidden onChange={(e) => { void onFile(e.target.files?.[0]); e.target.value = ''; }} />
+          <input ref={camRef} type="file" accept="image/*" capture="environment" hidden onChange={(e) => { void onFile(e.target.files?.[0]); e.target.value = ''; }} />
+          {scan.busy ? (
+            <div className="scan-busy" role="status">
+              <span>Reading receipt… {Math.round((scan.progress ?? 0) * 100)}%</span>
+              <div className="meter"><i style={{ width: `${Math.max(4, (scan.progress ?? 0) * 100)}%` }} /></div>
+            </div>
+          ) : (
+            <div className="btn-row tight">
+              {MOBILE && <button type="button" className="btn small primary" onClick={() => camRef.current?.click()}><Icon name="camera" size={15} />Scan receipt</button>}
+              <button type="button" className={`btn small${MOBILE ? '' : ' primary'}`} onClick={() => fileRef.current?.click()}><Icon name="image" size={15} />{MOBILE ? 'From photos' : 'Scan receipt image'}</button>
+              {!scan.done && !scan.error && <small className="hint">Reads the menu items, quantities, prices, service and tax. Read on this device only.</small>}
+            </div>
+          )}
+          {scan.done && <p className="scan-note ok"><Icon name="check" size={14} />{scan.done}</p>}
+          {scan.error && <p className="scan-note bad"><Icon name="warn" size={14} />{scan.error}</p>}
+          {scan.text !== undefined && !scan.busy && (
+            <details className="scan-text"><summary>Show the text read from the photo</summary><pre>{scan.text.trim() || '(nothing)'}</pre></details>
+          )}
+        </div>
         <Field label="Place"><input value={place} onChange={(e) => setPlace(e.target.value)} placeholder="e.g. Café Lumen" maxLength={60} /></Field>
 
         <div className="field">
@@ -190,10 +230,10 @@ export function BillSplit({ m, init, ctx, onBack, onSaved }: { m: Model; init: B
           <div><span>Service{service ? ` ${service}%` : ''}</span><b>{m.fmt(res.service)}</b></div>
           <div><span>Tax{tax ? ` ${tax}%` : ''}</span><b>{m.fmt(res.tax)}</b></div>
           <div className="grand"><span>Total</span><b>{m.fmt(res.total)}</b></div>
-          {init.receiptTotal !== undefined && Math.abs(diff) > 1 && (
-            <p className="status warn"><Icon name="warn" size={13} />Receipt says {m.fmt(init.receiptTotal)} — {diff > 0 ? `${m.fmt(diff)} more` : `${m.fmt(-diff)} less`} here. Check prices, service and tax.</p>
+          {receiptTotal !== undefined && Math.abs(diff) > 1 && (
+            <p className="status warn"><Icon name="warn" size={13} />Receipt says {m.fmt(receiptTotal)} — {diff > 0 ? `${m.fmt(diff)} more` : `${m.fmt(-diff)} less`} here. Check prices, service and tax.</p>
           )}
-          {init.receiptTotal !== undefined && Math.abs(diff) <= 1 && res.total > 0 && <p className="status good"><Icon name="check" size={13} />Matches the receipt total.</p>}
+          {receiptTotal !== undefined && Math.abs(diff) <= 1 && res.total > 0 && <p className="status good"><Icon name="check" size={13} />Matches the receipt total.</p>}
         </div>
 
         {friends.length > 0 && (

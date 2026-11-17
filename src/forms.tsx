@@ -1,8 +1,8 @@
-import { useRef, useState } from 'react';
+import { useState } from 'react';
 import { Capacitor } from '@capacitor/core';
 import { OPS, decimalSeparator, evalExpr, fmtInput, parseAmount, type Model } from './calc';
 import { put, remove, today, txId, uid, type Account, type Category, type Goal, type PayKind, type PayMethod, type Recurring, type Tx, type TxType } from './store';
-import { merchantSub, scanReceipt, type Receipt } from './receipt';
+import { merchantSub, type Receipt } from './receipt';
 import { BillSplit, type BillInit } from './bill';
 import { Field, Icon, Modal, Seg } from './ui';
 
@@ -46,7 +46,6 @@ function Actions({ onDelete, close, label = 'Save', disabled }: { onDelete?: () 
   );
 }
 
-interface ItemRow { name: string; amt: string; sub: string }
 
 function TxForm({ m, tx, preset, close }: { m: Model; tx?: Tx; preset?: Partial<Tx>; close: () => void }) {
   const init = tx ?? preset ?? {};
@@ -64,57 +63,30 @@ function TxForm({ m, tx, preset, close }: { m: Model; tx?: Tx; preset?: Partial<
   const [pm, setPm] = useState<PayKind | undefined>(init.pm ?? lastPaid?.pm);
   const [pmid, setPmid] = useState<string | undefined>(init.pmid ?? lastPaid?.pmid);
   const [newMethod, setNewMethod] = useState<{ name: string; last4: string } | null>(null);
-  const [scan, setScan] = useState<{ busy?: boolean; progress?: number; error?: string; done?: string; text?: string }>({});
-  const [items, setItems] = useState<ItemRow[]>([]);
-  const [split, setSplit] = useState(false);
   const [pad, setPad] = useState(MOBILE);
-  const [lastScan, setLastScan] = useState<Receipt | null>(null);
   const [bill, setBill] = useState<BillInit | null>(null);
-  const fileRef = useRef<HTMLInputElement>(null);
-  const camRef = useRef<HTMLInputElement>(null);
 
   const cats = m.categories.filter((c) => c.kind === type);
   const sel = cats.some((c) => c.id === cat) ? cat : cats[0]?.id;
   const selCat = cats.find((c) => c.id === sel);
   const subs = selCat?.subs ?? [];
-  const useSplit = split && type === 'expense' && items.length > 0;
-  const cents = useSplit ? items.reduce((a, i) => a + parseAmount(i.amt), 0) : parseAmount(amount);
-  const ok = cents > 0 && acc && (type === 'transfer' ? toAcc && toAcc !== acc : true) && !scan.busy;
+  const cents = parseAmount(amount);
+  const ok = cents > 0 && acc && (type === 'transfer' ? toAcc && toAcc !== acc : true);
 
-  const onFile = async (file?: File) => {
-    if (!file) return;
-    setScan({ busy: true, progress: 0 });
-    try {
-      const r = await scanReceipt(file, m.categories, (p) => setScan({ busy: true, progress: p }));
-      if (!r.total && !r.items.length) { setScan({ text: r.text, error: r.text.trim() ? 'Text was found, but no prices could be picked out of it. Check the text below, then type the details in, or try a flatter, closer photo.' : 'No text could be read. Try a sharper, well-lit photo taken straight on, with the receipt filling the frame.' }); return; }
-      setType('expense');
-      setAmount(fmtInput(r.total));
-      setDate(r.date);
-      if (r.merchant) setNote(r.merchant);
-      if (r.pay) {
-        // Match to a saved card (by last 4 digits, then network) or QR app (by name).
-        const pool = m.methods.filter((x) => x.kind === r.pay!.kind);
-        const hit = r.pay.kind === 'card'
-          ? pool.find((x) => r.pay!.last4 && x.last4 === r.pay!.last4) ?? pool.find((x) => r.pay!.name && x.network?.toLowerCase().replace(/\s/g, '') === r.pay!.name!.toLowerCase())
-          : pool.find((x) => r.pay!.name && x.name.toLowerCase().replace(/\s/g, '').includes(r.pay!.name!.toLowerCase().replace(/\s/g, '')));
-        setPm(r.pay.kind); setPmid(hit?.id);
-        if (hit?.acc && m.acc(hit.acc)) setAcc(hit.acc);
-      }
-      if (r.cat) { setCat(r.cat); setSub(merchantSub(r.merchant, m.cat(r.cat)) ?? ''); }
-      const rows = r.items.map((i) => ({ name: i.name, amt: fmtInput(i.amount), sub: i.sub ?? '' }));
-      const sum = r.items.reduce((a, i) => a + i.amount, 0);
-      const gap = r.total - sum;
-      // Keep itemized entries equal to what was actually paid: carry tax and fees as their own line.
-      const taxLine = rows.length > 0 && gap > 1 && gap <= sum * 0.35;
-      if (taxLine) rows.push({ name: 'Tax or unread lines', amt: fmtInput(gap), sub: '' });
-      setItems(rows);
-      setSplit(false);
-      setLastScan(r);
-      setScan({ text: r.text, done: `Read ${r.merchant ? `“${r.merchant}”` : 'the receipt'}: total ${m.fmt(r.total)}${r.items.length ? `, ${r.items.length} item${r.items.length === 1 ? '' : 's'}` : ''}.${taxLine ? ` Items add up to ${m.fmt(sum)}, so the other ${m.fmt(gap)} is listed as “Tax or unread lines”.` : r.items.length && Math.abs(gap) > 1 ? ` Items add up to ${m.fmt(sum)} — a line may have been missed or misread.` : ''} Please check before saving.` });
-    } catch (e) {
-      console.error('receipt scan', e);
-      setScan({ error: `The receipt couldn’t be read (${e instanceof Error ? e.message : String(e)}). You can still type the details in.` });
+  /** A receipt scanned in Bill & split also sets the date, place, category and payment method used when saving. */
+  const applyScan = (r: Receipt) => {
+    setDate(r.date);
+    if (r.merchant) setNote(r.merchant);
+    if (r.pay) {
+      // Match to a saved card (by last 4 digits, then network) or QR app (by name).
+      const pool = m.methods.filter((x) => x.kind === r.pay!.kind);
+      const hit = r.pay.kind === 'card'
+        ? pool.find((x) => r.pay!.last4 && x.last4 === r.pay!.last4) ?? pool.find((x) => r.pay!.name && x.network?.toLowerCase().replace(/\s/g, '') === r.pay!.name!.toLowerCase())
+        : pool.find((x) => r.pay!.name && x.name.toLowerCase().replace(/\s/g, '').includes(r.pay!.name!.toLowerCase().replace(/\s/g, '')));
+      setPm(r.pay.kind); setPmid(hit?.id);
+      if (hit?.acc && m.acc(hit.acc)) setAcc(hit.acc);
     }
+    if (r.cat) { setCat(r.cat); setSub(merchantSub(r.merchant, m.cat(r.cat)) ?? ''); }
   };
   const addSub = () => {
     const name = (newSub ?? '').trim().slice(0, 30);
@@ -122,77 +94,44 @@ function TxForm({ m, tx, preset, close }: { m: Model; tx?: Tx; preset?: Partial<
     if (name) setSub(subs.find((x) => x.toLowerCase() === name.toLowerCase()) ?? name);
     setNewSub(null);
   };
-  const setItem = (i: number, p: Partial<ItemRow>) => setItems(items.map((x, k) => (k === i ? { ...x, ...p } : x)));
 
   const save = (e: React.FormEvent) => {
     e.preventDefault();
     if (!ok) return;
     const pay = type === 'expense' && pm ? { pm, pmid: pm === 'cash' ? undefined : m.methods.some((x) => x.id === pmid && x.kind === pm) ? pmid : undefined } : { pm: undefined, pmid: undefined };
     const base = { date, type, acc, rid: tx?.rid, who: type === 'transfer' ? tx?.who : undefined, ...pay };
-    if (useSplit) {
-      const where = note.trim();
-      put('tx', ...items.filter((i) => parseAmount(i.amt) > 0).map((i) => ({
-        ...base, id: txId(date), amount: parseAmount(i.amt), cat: sel, sub: subs.includes(i.sub) ? i.sub : undefined,
-        note: [i.name.trim(), where].filter(Boolean).join(' · ').slice(0, 120),
-      })));
-    } else {
-      put('tx', {
-        ...base, id: tx?.id ?? txId(date), amount: cents, note: note.trim(),
-        cat: type === 'transfer' ? undefined : sel, sub: type !== 'transfer' && subs.includes(sub) ? sub : undefined,
-        toAcc: type === 'transfer' ? toAcc : undefined,
-      });
-    }
+    put('tx', {
+      ...base, id: tx?.id ?? txId(date), amount: cents, note: note.trim(),
+      cat: type === 'transfer' ? undefined : sel, sub: type !== 'transfer' && subs.includes(sub) ? sub : undefined,
+      toAcc: type === 'transfer' ? toAcc : undefined,
+    });
     close();
   };
 
-  const openBill = () => setBill({
-    place: note.trim(), date,
-    items: lastScan ? lastScan.items.map((i) => ({ name: i.name, amount: i.amount })) : [],
-    charges: lastScan?.charges, receiptTotal: lastScan?.total || undefined,
-  });
-  if (bill) return <BillSplit m={m} init={bill} ctx={{ acc, cat: sel, sub: subs.includes(sub) ? sub : undefined, pm, pmid: pm === 'cash' ? undefined : pmid }} onBack={() => setBill(null)} onSaved={close} />;
+  const openBill = () => setBill({ place: note.trim(), date, items: [] });
+  if (bill) return <BillSplit m={m} init={bill} ctx={{ acc, cat: sel, sub: subs.includes(sub) ? sub : undefined, pm, pmid: pm === 'cash' ? undefined : pmid }} onBack={() => setBill(null)} onSaved={close} onScanned={applyScan} />;
 
   return (
-    <Modal title={tx ? 'Edit transaction' : 'New transaction'} onClose={close} footer={<Actions close={close} disabled={!ok} label={useSplit ? `Save ${items.length} items` : 'Save'} onDelete={tx ? () => remove('tx', tx.id) : undefined} />}>
+    <Modal title={tx ? 'Edit transaction' : 'New transaction'} onClose={close} footer={<Actions close={close} disabled={!ok} label="Save" onDelete={tx ? () => remove('tx', tx.id) : undefined} />}>
       <form id="dlg" onSubmit={save} className="form">
         <Seg value={type} onChange={setType} options={[['expense', 'Expense'], ['income', 'Income'], ['transfer', 'Transfer']]} />
         {!tx && type === 'expense' && (
-          <div className="scan">
-            <input ref={fileRef} type="file" accept="image/*" hidden onChange={(e) => { void onFile(e.target.files?.[0]); e.target.value = ''; }} />
-            <input ref={camRef} type="file" accept="image/*" capture="environment" hidden onChange={(e) => { void onFile(e.target.files?.[0]); e.target.value = ''; }} />
-            {scan.busy ? (
-              <div className="scan-busy" role="status">
-                <span>Reading receipt… {Math.round((scan.progress ?? 0) * 100)}%</span>
-                <div className="meter"><i style={{ width: `${Math.max(4, (scan.progress ?? 0) * 100)}%` }} /></div>
-              </div>
-            ) : (
-              <div className="btn-row tight">
-                {MOBILE && <button type="button" className="btn small" onClick={() => camRef.current?.click()}><Icon name="camera" size={15} />Scan receipt</button>}
-                <button type="button" className="btn small" onClick={() => fileRef.current?.click()}><Icon name="image" size={15} />{MOBILE ? 'From photos' : 'Scan receipt image'}</button>
-                <button type="button" className="btn small" onClick={openBill}><Icon name="split" size={15} />Bill &amp; split</button>
-                {!scan.done && !scan.error && <small className="hint">Scan fills in the amount, date and items for you, read on this device only. Bill &amp; split adds service and tax and divides a bill between friends.</small>}
-              </div>
-            )}
-            {scan.done && <p className="scan-note ok"><Icon name="check" size={14} /><span>{scan.done} {lastScan && lastScan.items.length > 0 && <button type="button" className="link" onClick={openBill}>Split this bill</button>}</span></p>}
-            {scan.error && <p className="scan-note bad"><Icon name="warn" size={14} />{scan.error}</p>}
-            {scan.text !== undefined && !scan.busy && (
-              <details className="scan-text">
-                <summary>Show the text read from the photo</summary>
-                <pre>{scan.text.trim() || '(nothing)'}</pre>
-              </details>
-            )}
-          </div>
+          <button type="button" className="bill-entry" onClick={openBill}>
+            <span className="bill-entry-ic"><Icon name="split" size={20} /></span>
+            <span><b>Bill &amp; split</b><small>Scan a receipt or type the menu — adds service and tax, splits between friends</small></span>
+            <Icon name="right" size={16} />
+          </button>
         )}
         <div className="amount-in">
           <span>{type === 'expense' ? '−' : type === 'income' ? '+' : '⇄'}</span>
-          <input autoFocus={!MOBILE} inputMode={pad && MOBILE ? 'none' : 'decimal'} placeholder="0" value={useSplit ? fmtInput(cents) : amount}
-            readOnly={useSplit || (pad && MOBILE)} aria-label="Amount"
+          <input autoFocus={!MOBILE} inputMode={pad && MOBILE ? 'none' : 'decimal'} placeholder="0" value={amount}
+            readOnly={pad && MOBILE} aria-label="Amount"
             onChange={(e) => setAmount(e.target.value.replace(/[^\d.,+\-−*/×÷() ]/g, ''))}
             onKeyDown={(e) => { if (e.key === '=') { e.preventDefault(); const v = evalExpr(amount.replace(/[+\-−*/×÷\s]+$/, '')); if (v !== null) setAmount(fmtCalc(v)); } }} />
-          {!useSplit && <button type="button" className={`icon-btn calc-toggle${pad ? ' on' : ''}`} onClick={() => setPad(!pad)} aria-pressed={pad} aria-label={pad ? 'Hide calculator' : 'Show calculator'} title="Calculator"><Icon name="calc" /></button>}
+          {<button type="button" className={`icon-btn calc-toggle${pad ? ' on' : ''}`} onClick={() => setPad(!pad)} aria-pressed={pad} aria-label={pad ? 'Hide calculator' : 'Show calculator'} title="Calculator"><Icon name="calc" /></button>}
         </div>
-        {!useSplit && OPS.test(amount.replace(/^[-−]/, '')) && <p className="calc-result">= {m.fmt(cents)}</p>}
-        {!useSplit && pad && <Keypad value={amount} onChange={setAmount} />}
+        {OPS.test(amount.replace(/^[-−]/, '')) && <p className="calc-result">= {m.fmt(cents)}</p>}
+        {pad && <Keypad value={amount} onChange={setAmount} />}
         {type !== 'transfer' && (
           <div className="chips" role="radiogroup" aria-label="Category">
             {cats.map((c) => (
@@ -202,7 +141,7 @@ function TxForm({ m, tx, preset, close }: { m: Model; tx?: Tx; preset?: Partial<
             ))}
           </div>
         )}
-        {type !== 'transfer' && selCat && !useSplit && (
+        {type !== 'transfer' && selCat && (
           <div className="subs">
             <span className="subs-label">{selCat.name} › sub-category</span>
             <div className="chips small" role="radiogroup" aria-label="Sub-category">
@@ -256,24 +195,6 @@ function TxForm({ m, tx, preset, close }: { m: Model; tx?: Tx; preset?: Partial<
             <datalist id="card-names">{CARD_NETWORKS.map((x) => <option key={x} value={x} />)}</datalist>
           </div>
         )}
-        {type === 'expense' && items.length > 0 && (
-          <div className="items">
-            <label className="check"><input type="checkbox" checked={split} onChange={(e) => setSplit(e.target.checked)} />Save each item separately <small>({items.length} found — lets you track sub-categories)</small></label>
-            {split && (
-              <>
-                {items.map((it, i) => (
-                  <div key={i} className="item-row">
-                    <input value={it.name} onChange={(e) => setItem(i, { name: e.target.value })} aria-label={`Item ${i + 1} name`} />
-                    {subs.length > 0 && <select value={subs.includes(it.sub) ? it.sub : ''} onChange={(e) => setItem(i, { sub: e.target.value })} aria-label={`Item ${i + 1} sub-category`}><option value="">No sub-category</option>{subs.map((x) => <option key={x}>{x}</option>)}</select>}
-                    <input className="item-amt" inputMode="decimal" value={it.amt} onChange={(e) => setItem(i, { amt: e.target.value })} aria-label={`Item ${i + 1} amount`} />
-                    <button type="button" className="icon-btn" onClick={() => setItems(items.filter((_, k) => k !== i))} aria-label={`Remove item ${i + 1}`}><Icon name="x" size={16} /></button>
-                  </div>
-                ))}
-                <button type="button" className="link" onClick={() => setItems([...items, { name: '', amt: '', sub: '' }])}>Add an item</button>
-              </>
-            )}
-          </div>
-        )}
         <div className="row2">
           <Field label={type === 'transfer' ? 'From' : 'Account'}>
             <select value={acc} onChange={(e) => setAcc(e.target.value)}>{m.accounts.map((a) => <option key={a.id} value={a.id}>{a.name}</option>)}</select>
@@ -287,7 +208,7 @@ function TxForm({ m, tx, preset, close }: { m: Model; tx?: Tx; preset?: Partial<
           )}
         </div>
         {type === 'transfer' && <Field label="Date"><input type="date" value={date} onChange={(e) => setDate(e.target.value)} required /></Field>}
-        <Field label={useSplit ? 'Store' : 'Note'}><input value={note} onChange={(e) => setNote(e.target.value)} placeholder={type === 'transfer' ? 'Optional' : 'Where or what for?'} maxLength={120} /></Field>
+        <Field label="Note"><input value={note} onChange={(e) => setNote(e.target.value)} placeholder={type === 'transfer' ? 'Optional' : 'Where or what for?'} maxLength={120} /></Field>
         {type === 'transfer' && m.accounts.length < 2 && <p className="hint">Add a second account to record transfers.</p>}
       </form>
     </Modal>
