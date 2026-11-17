@@ -1,9 +1,10 @@
-// The 20 flower themes: colours plus a short field guide for each flower.
+// The flower themes (20 from around the world, 10 native to Indonesia): colours plus a short field guide for each flower.
 // Chart colour pairs come from palettes checked for colour-blind readability (see README).
 
 export type FlowerId =
   | 'iris' | 'rose' | 'sunflower' | 'cherry' | 'lavender' | 'lotus' | 'tulip' | 'orchid' | 'jasmine' | 'hibiscus'
-  | 'lily' | 'daisy' | 'poppy' | 'peony' | 'magnolia' | 'frangipani' | 'strelitzia' | 'camellia' | 'bluebell' | 'marigold';
+  | 'lily' | 'daisy' | 'poppy' | 'peony' | 'magnolia' | 'frangipani' | 'strelitzia' | 'camellia' | 'bluebell' | 'marigold'
+  | 'rafflesia' | 'titan' | 'edelweiss' | 'blackorchid' | 'tigerorchid' | 'vanda' | 'torchginger' | 'clove' | 'kenanga' | 'cempaka';
 
 type Pair = { light: [string, string]; dark: [string, string] };
 const GV: Pair = { light: ['#008300', '#6250d6'], dark: ['#0ca30c', '#9085e9'] }; // green · violet
@@ -15,6 +16,8 @@ const VR: Pair = { light: ['#6250d6', '#e34948'], dark: ['#9085e9', '#e66767'] }
 
 export interface Flower {
   id: FlowerId; name: string; latin: string; family: string; blurb: string;
+  /** Indonesian name, when it has a well-known one. */ local?: string;
+  /** 'id' = native to Indonesia; shown in its own group in the picker. */ region?: 'id';
   origin: string; where: string; season: string; meaning: string; facts: string[];
   /** light accent, light text-safe ink, dark accent, dark ink */
   accent: [string, string, string, string];
@@ -88,7 +91,7 @@ export const FLOWERS: Flower[] = [
     accent: ['#7343d9', '#5a2fb8', '#a083f0', '#c2b0f7'], petals: ['#8f6ee0', '#b9a1ee'], heart: '#6a4cc4', stem: '#7f9f78', pair: VR,
   },
   {
-    id: 'lotus', name: 'Sacred Lotus', latin: 'Nelumbo nucifera', family: 'Nelumbonaceae (lotus family)', blurb: 'Pink on still water',
+    id: 'lotus', local: 'Teratai / seroja', name: 'Sacred Lotus', latin: 'Nelumbo nucifera', family: 'Nelumbonaceae (lotus family)', blurb: 'Pink on still water',
     origin: 'Tropical and temperate Asia, reaching south to northern Australia.',
     where: 'Ponds, lakes and temple pools in India, Vietnam, Thailand, China and Indonesia.',
     season: 'Summer', meaning: 'Purity rising out of the mud; sacred in Hinduism and Buddhism',
@@ -114,7 +117,7 @@ export const FLOWERS: Flower[] = [
     accent: ['#c01f55', '#9c1744', '#ef5f8b', '#f597b4'], petals: ['#e2335f', '#f27b98'], heart: '#3a1a22', stem: '#4f9a52', pair: OB,
   },
   {
-    id: 'orchid', name: 'Moon Orchid', latin: 'Phalaenopsis amabilis', family: 'Orchidaceae (orchid family)', blurb: 'Orchid magenta',
+    id: 'orchid', local: 'Anggrek bulan', name: 'Moon Orchid', latin: 'Phalaenopsis amabilis', family: 'Orchidaceae (orchid family)', blurb: 'Orchid magenta',
     origin: 'Southeast Asia to northern Australia: Indonesia, the Philippines, Malaysia, New Guinea and Queensland.',
     where: 'Humid lowland forests, clinging to tree branches; and windowsills worldwide as one of the most popular houseplants.',
     season: 'Often winter to spring; a spray can last two or three months', meaning: 'Indonesia’s “puspa pesona”, the charming flower',
@@ -127,7 +130,7 @@ export const FLOWERS: Flower[] = [
     accent: ['#b5309e', '#8f2380', '#dc6cc9', '#eba0df'], petals: ['#f6e1f1', '#e7a3dc'], heart: '#c2307f', stem: '#4a8a5a', pair: MG,
   },
   {
-    id: 'jasmine', name: 'Jasmine', latin: 'Jasminum sambac', family: 'Oleaceae (olive family)', blurb: 'White on fresh green',
+    id: 'jasmine', local: 'Melati putih', name: 'Jasmine', latin: 'Jasminum sambac', family: 'Oleaceae (olive family)', blurb: 'White on fresh green',
     origin: 'South and Southeast Asia, probably the eastern Himalayas.',
     where: 'Gardens and hedges in Indonesia, the Philippines, India and Thailand; strung into garlands at weddings.',
     season: 'Most of the year in the tropics', meaning: 'Purity, sincerity and grace',
@@ -140,7 +143,7 @@ export const FLOWERS: Flower[] = [
     accent: ['#2f8a4c', '#1f6b38', '#4cc074', '#82d9a0'], petals: ['#fffdf6', '#eef3e3'], heart: '#e0be3a', stem: '#2f7a3e', pair: GV,
   },
   {
-    id: 'hibiscus', name: 'Hibiscus', latin: 'Hibiscus rosa-sinensis', family: 'Malvaceae (mallow family)', blurb: 'Tropical scarlet',
+    id: 'hibiscus', local: 'Kembang sepatu', name: 'Hibiscus', latin: 'Hibiscus rosa-sinensis', family: 'Malvaceae (mallow family)', blurb: 'Tropical scarlet',
     origin: 'Unknown in the wild; probably tropical Asia or the Pacific, and known today only in cultivation.',
     where: 'Gardens and hedges across Southeast Asia, the Pacific islands and the Caribbean.',
     season: 'All year in the tropics', meaning: 'Malaysia’s national flower, the bunga raya',
@@ -218,7 +221,7 @@ export const FLOWERS: Flower[] = [
     accent: ['#1f7a6d', '#155e54', '#3fb3a0', '#7fd3c4'], petals: ['#fffdf7', '#ece3cf'], heart: '#c9a24a', stem: '#1f5e3a', pair: AO,
   },
   {
-    id: 'frangipani', name: 'Frangipani', latin: 'Plumeria rubra', family: 'Apocynaceae (dogbane family)', blurb: 'Island white and gold',
+    id: 'frangipani', local: 'Kamboja / jepun', name: 'Frangipani', latin: 'Plumeria rubra', family: 'Apocynaceae (dogbane family)', blurb: 'Island white and gold',
     origin: 'Mexico, Central America, Colombia and Venezuela.',
     where: 'Temple courtyards in Bali (where it is called jepun), Hawaiian leis, and tropical gardens worldwide.',
     season: 'The warm months, often through the dry season', meaning: 'Devotion; a constant in Balinese offerings',
@@ -281,6 +284,137 @@ export const FLOWERS: Flower[] = [
       'Its Nahuatl name, cempōhualxōchitl, means “twenty flower”, for its many petals.',
     ],
     accent: ['#b86a00', '#8f5200', '#f0a13a', '#f6c47e'], petals: ['#f59a0c', '#fbbf3c'], heart: '#c25e00', stem: '#4f8a3a', pair: GV,
+  },
+  // ───────── Flowers of Indonesia ─────────
+  {
+    id: 'rafflesia', region: 'id', local: 'Padma raksasa', name: 'Rafflesia', latin: 'Rafflesia arnoldii', family: 'Rafflesiaceae (rafflesia family)', blurb: 'Giant rust-red bloom',
+    origin: 'The rainforests of Sumatra and Borneo.',
+    where: 'Forests of Bengkulu and West Sumatra, such as Kerinci Seblat National Park and the Batang Palupuh reserve, and the forests of Kalimantan.',
+    season: 'No fixed season; each flower is open for only about a week', meaning: 'Indonesia’s “puspa langka”, the rare flower',
+    facts: [
+      'It is the largest single flower in the world: up to about 1 metre across and around 10 kg.',
+      'It has no leaves, stem or roots. It lives hidden inside a Tetrastigma vine and only shows itself to flower.',
+      'It smells of rotting meat, which draws the carrion flies that pollinate it.',
+      'It is named after Stamford Raffles and the naturalist Joseph Arnold, whose expedition recorded it in Sumatra in 1818.',
+    ],
+    accent: ['#a33a22', '#82301a', '#e2704f', '#efa086'], petals: ['#b8392b', '#d65f4a'], heart: '#5a1a14', stem: '#6b5a3a', pair: OB,
+  },
+  {
+    id: 'titan', region: 'id', local: 'Bunga bangkai', name: 'Titan Arum', latin: 'Amorphophallus titanum', family: 'Araceae (arum family)', blurb: 'Maroon giant',
+    origin: 'The rainforests of western Sumatra.',
+    where: 'Forest edges in Bengkulu and West Sumatra, and in botanic gardens such as Kebun Raya Bogor.',
+    season: 'Unpredictable: often years apart, and each bloom lasts only a day or two', meaning: 'The famous “corpse flower”',
+    facts: [
+      'Its flower spike is the largest unbranched inflorescence in the world, reaching about 3 metres tall.',
+      'While blooming it warms its central spike to around body temperature to spread its smell of rotting flesh.',
+      'Between blooms it grows a single giant leaf that can look like a small tree.',
+      'Its underground tuber can weigh well over 100 kg; Kebun Raya Bogor has recorded one of the heaviest ever.',
+    ],
+    accent: ['#8e2a4f', '#73203f', '#d0679a', '#e39cbd'], petals: ['#7a1f3d', '#8fae5a'], heart: '#e8d58a', stem: '#5f8a4a', pair: MG,
+  },
+  {
+    id: 'edelweiss', region: 'id', local: 'Edelweis Jawa / bunga abadi', name: 'Javanese Edelweiss', latin: 'Anaphalis javanica', family: 'Asteraceae (daisy family)', blurb: 'Silver mountain white',
+    origin: 'The high volcanoes of Java, Sumatra, Lombok and Sulawesi.',
+    where: 'Above about 2,000 m on peaks such as Gede Pangrango, Bromo Tengger Semeru and Rinjani.',
+    season: 'Mostly the dry season, around April to August', meaning: 'Eternity and lasting love; it is called the “everlasting flower”',
+    facts: [
+      'Its dried flowers keep their shape for a very long time, which is why it is called bunga abadi, the everlasting flower.',
+      'It is protected: picking it in Indonesia’s national parks is forbidden.',
+      'It is a tough pioneer that grows on poor volcanic soil, often among the first plants back after an eruption.',
+      'Near Bromo, Tengger villages now grow it for their ceremonies so the wild plants can be left alone.',
+    ],
+    accent: ['#4f6f63', '#3d574d', '#8fb5a6', '#b6d2c6'], petals: ['#fbfaf2', '#e3e6d6'], heart: '#c9a95a', stem: '#8aa38f', pair: AO,
+  },
+  {
+    id: 'blackorchid', region: 'id', local: 'Anggrek hitam', name: 'Black Orchid', latin: 'Coelogyne pandurata', family: 'Orchidaceae (orchid family)', blurb: 'Lime green and black',
+    origin: 'Borneo, Sumatra and the Malay Peninsula.',
+    where: 'Damp lowland forests of Kalimantan, most famously the Kersik Luway reserve in East Kalimantan.',
+    season: 'On and off through the year, in arching sprays', meaning: 'The flora mascot of East Kalimantan',
+    facts: [
+      'Only its lip is black, painted with dark veins; the rest of the flower is bright lime green.',
+      'It is the floral emblem of East Kalimantan province.',
+      'The flowers are fragrant.',
+      'Forest clearing has made it rare in the wild, so the Kersik Luway reserve protects its habitat.',
+    ],
+    accent: ['#4f7d14', '#3c610e', '#9bd04a', '#bfe48a'], petals: ['#9ccc4a', '#c3e27e'], heart: '#1b1b1f', stem: '#3f7a3e', pair: GV,
+  },
+  {
+    id: 'tigerorchid', region: 'id', local: 'Anggrek tebu', name: 'Tiger Orchid', latin: 'Grammatophyllum speciosum', family: 'Orchidaceae (orchid family)', blurb: 'Gold with brown spots',
+    origin: 'Southeast Asia to New Guinea and the Solomon Islands, including much of Indonesia.',
+    where: 'High in the trees of lowland forests in Sumatra, Java, Kalimantan and Papua, and at Kebun Raya Bogor.',
+    season: 'Irregular; a plant may go several years between blooms', meaning: 'The “sugarcane orchid”, named for its tall cane-like stems',
+    facts: [
+      'It is the largest orchid in the world: an old clump can weigh hundreds of kilograms, even more than a tonne.',
+      'Its flower spikes can grow up to about 3 metres long and carry dozens of flowers.',
+      'Its Indonesian name, anggrek tebu, means “sugarcane orchid”, after its stems.',
+      'It can take years to build up enough strength to flower, then put on a huge display.',
+    ],
+    accent: ['#9a6a00', '#764f00', '#e8b52a', '#f3d06a'], petals: ['#f3c623', '#f8dc6a'], heart: '#7a3b12', stem: '#5a8a3a', pair: BO,
+  },
+  {
+    id: 'vanda', region: 'id', local: 'Anggrek Vanda', name: 'Vanda Tricolor', latin: 'Vanda tricolor', family: 'Orchidaceae (orchid family)', blurb: 'Cream with magenta',
+    origin: 'Java and Bali.',
+    where: 'On trees in the mountain forests of Java, notably on the slopes of Merapi and Merbabu.',
+    season: 'Mostly in the rainy season', meaning: '“Tricolor”, for its three colours: cream, spotted brown and a magenta lip',
+    facts: [
+      'Its flowers are sweetly scented, unusual among big showy orchids.',
+      'It grows upward from a single stem without bulbs, clinging to trees with thick aerial roots.',
+      'Conservation groups have been replanting it on Merapi’s slopes after eruptions.',
+      'Vanda comes from a Sanskrit name for orchids that grow on trees.',
+    ],
+    accent: ['#9c2a74', '#7d215d', '#d465ad', '#e79bcd'], petals: ['#fbf3e6', '#e9d6c0'], heart: '#a3237a', stem: '#4f8a52', pair: VR,
+  },
+  {
+    id: 'torchginger', region: 'id', local: 'Kecombrang / honje', name: 'Torch Ginger', latin: 'Etlingera elatior', family: 'Zingiberaceae (ginger family)', blurb: 'Waxy torch pink',
+    origin: 'Indonesia and Malaysia: Sumatra, Java and Borneo.',
+    where: 'Forest edges and village gardens across Sumatra, Java and Bali, and fresh markets, where the buds are sold for cooking.',
+    season: 'All year', meaning: 'A flower for the kitchen as much as the garden',
+    facts: [
+      'Its pink buds are sliced into sambal, salads and fish dishes across Indonesia.',
+      'Batak cooks use its sour fruit, asam cikala, in the fish dish arsik.',
+      'The waxy “petals” are bracts; the true flowers are small and sit along their edges.',
+      'Its leafy stems can grow taller than a person, around 5 metres.',
+    ],
+    accent: ['#c4204d', '#9e1940', '#ef5f86', '#f596b1'], petals: ['#e8365f', '#f47d9a'], heart: '#b0123e', stem: '#3f7f4a', pair: GV,
+  },
+  {
+    id: 'clove', region: 'id', local: 'Cengkih', name: 'Clove', latin: 'Syzygium aromaticum', family: 'Myrtaceae (myrtle family)', blurb: 'Spice-island red',
+    origin: 'The northern Maluku islands: Ternate, Tidore, Makian, Moti and Bacan, the original Spice Islands.',
+    where: 'Plantations in Maluku, Sulawesi, Java and Sumatra, and abroad in Zanzibar and Madagascar.',
+    season: 'Buds are picked when they turn pink, just before they open', meaning: 'The spice that changed world history',
+    facts: [
+      'A clove is a dried flower bud, picked before it can open.',
+      'European powers fought for control of Maluku for centuries to win the clove and nutmeg trade.',
+      'Indonesia is the world’s largest grower and user of cloves, much of it for kretek cigarettes.',
+      'Its oil, eugenol, numbs pain and has long been used by dentists.',
+    ],
+    accent: ['#9e3b1c', '#7f2f15', '#e27a4f', '#efa585'], petals: ['#d24b34', '#fff6dc'], heart: '#8a2d1a', stem: '#3d7a46', pair: AO,
+  },
+  {
+    id: 'kenanga', region: 'id', local: 'Kenanga', name: 'Ylang-ylang', latin: 'Cananga odorata', family: 'Annonaceae (custard-apple family)', blurb: 'Chartreuse and scented',
+    origin: 'Maritime Southeast Asia: Indonesia, the Philippines and Malaysia.',
+    where: 'Village yards across Java and Bali; grown for perfume oil in Madagascar and the Comoros.',
+    season: 'All year', meaning: 'Part of Javanese wedding and ceremonial flowers',
+    facts: [
+      'Its oil is a key note in Chanel No. 5.',
+      'The drooping petals start green and turn yellow as they ripen, and the scent grows stronger.',
+      'In Java its petals are scattered on bridal beds and mixed into ceremonial flowers.',
+      'It belongs to the custard-apple family, alongside soursop and sugar apple.',
+    ],
+    accent: ['#6f7a10', '#56600b', '#bccb3a', '#d6e27a'], petals: ['#cfd243', '#eaee8a'], heart: '#8a7a1a', stem: '#4c7d3a', pair: GV,
+  },
+  {
+    id: 'cempaka', region: 'id', local: 'Cempaka kuning', name: 'Champak', latin: 'Magnolia champaca', family: 'Magnoliaceae (magnolia family)', blurb: 'Saffron gold',
+    origin: 'South and Southeast Asia, from the Himalayan foothills to Sumatra and Java.',
+    where: 'Temple yards in Bali and home gardens across Java and Sumatra.',
+    season: 'Much of the year', meaning: 'Devotion; a favourite for offerings and for the hair',
+    facts: [
+      'Its scent is among the most prized in perfume; it is in the classic perfume Joy.',
+      'In Bali it is used in offerings and tucked into hair for ceremonies.',
+      'It is a true magnolia, a cousin of the Magnolia theme.',
+      'Its fine wood is used for carving and furniture.',
+    ],
+    accent: ['#b5520a', '#904108', '#f08a40', '#f6b27e'], petals: ['#f2a024', '#f8c360'], heart: '#b8650c', stem: '#3f7d48', pair: OB,
   },
 ];
 

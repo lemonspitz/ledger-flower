@@ -17,9 +17,9 @@ Capacitor for Android and iPhone, Electron for desktop, and as an installable we
 ![Insights in dark mode with the Sacred Lotus theme](docs/screenshots/desktop-insights-dark.png)
 
 <details>
-<summary>All 20 flower themes</summary>
+<summary>All 30 flower themes</summary>
 
-![The 20 flower themes in the theme picker](docs/screenshots/flower-themes.png)
+![The 30 flower themes in the theme picker](docs/screenshots/flower-themes.png)
 
 </details>
 
@@ -39,7 +39,7 @@ Capacitor for Android and iPhone, Electron for desktop, and as an installable we
 - **Insights** – 3/6/12-month view: balance trend, income vs spending, category ranking, weekday pattern, per-category trends, largest expenses, and plain-language observations.
 - **Goals** – savings targets with progress and the monthly amount needed to hit a date.
 - **Accounts & recurring** – multiple accounts with balances; bills and paychecks that enter themselves.
-- **Flower themes** – a frosted-glass design with large flower illustrations behind the glass, in 20 themes (Iris, Rose, Sunflower, Cherry Blossom, Lavender, Sacred Lotus, Tulip, Moon Orchid, Jasmine, Hibiscus, Madonna Lily, Daisy, Poppy, Peony, Magnolia, Frangipani, Bird of Paradise, Camellia, Bluebell, Marigold), each in light and dark. Each comes with a short field guide: Latin name, family, origin, where it grows, bloom season, meaning and facts. Chart colours in every theme use pairs checked for colour-blind readability. Pick one under Settings → Preferences.
+- **Flower themes** – a frosted-glass design with large flower illustrations behind the glass, in 30 themes, each in light and dark. **Flowers of Indonesia** (10 natives): Rafflesia (Rafflesia arnoldii), Titan Arum, Javanese Edelweiss, Black Orchid, Tiger Orchid, Vanda Tricolor, Torch Ginger, Clove, Ylang-ylang (kenanga) and Champak (cempaka). **Flowers of the world** (20): Iris, Rose, Sunflower, Cherry Blossom, Lavender, Sacred Lotus, Tulip, Moon Orchid, Jasmine, Hibiscus, Madonna Lily, Daisy, Poppy, Peony, Magnolia, Frangipani, Bird of Paradise, Camellia, Bluebell and Marigold. Each comes with a short field guide: Latin name, Indonesian name where there is one, family, origin, where it grows, bloom season, meaning and facts. Chart colours in every theme use pairs checked for colour-blind readability. Pick one under Settings → Preferences.
 - **Number format** – Settings → Preferences: 1,234.56 · 1.234,56 · 1 234,56 · 1'234.56 · 1,23,456.78, or the device's own style, plus decimals Automatic/Always/Never (Automatic hides cents for Rupiah and similar). Typed amounts follow the same style, so with 1.234,56 typing 1.000 means one thousand.
 - **Data** – CSV export, JSON backup/restore, light and dark themes, 30+ currencies.
 
@@ -129,7 +129,7 @@ xattr -cr "/Applications/Ledger Flower.app"
 | `src/sync.ts` | encrypted relay sync engine |
 | `src/split.ts`, `src/bill.tsx` | bill calculator, splitting maths and the Bill & split screen |
 | `src/receipt.ts` | on-device receipt OCR and parsing |
-| `src/flowers.ts` | the 20 flower themes: colours and field-guide info |
+| `src/flowers.ts` | the 30 flower themes: colours and field-guide info |
 | `src/themes.tsx` | theme CSS, flower drawings and the backdrop |
 | `src/calc.ts`, `src/charts.tsx` | derived figures and SVG charts |
 | `src/views.tsx`, `src/forms.tsx`, `src/App.tsx` | screens, dialogs, shell and settings |

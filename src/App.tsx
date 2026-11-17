@@ -230,8 +230,12 @@ function SettingsView({ m, prefs, setPrefs, open }: { m: Model; prefs: LocalPref
           </div>
           <div className="field">
             <span>Flower theme</span>
-            <div className="themes" role="radiogroup" aria-label="Flower theme">
-              {FLOWERS.map((f) => (
+            <div className="themes-scroll" role="radiogroup" aria-label="Flower theme">
+            {([['Flowers of Indonesia', FLOWERS.filter((f) => f.region === 'id')], ['Flowers of the world', FLOWERS.filter((f) => f.region !== 'id')]] as const).map(([group, list]) => (
+            <div key={group}>
+            <b className="theme-group">{group} <small>{list.length}</small></b>
+            <div className="themes">
+              {list.map((f) => (
                 <button key={f.id} type="button" role="radio" aria-checked={plant === f.id} className={`theme-opt${plant === f.id ? ' on' : ''}`} onClick={() => setPrefs({ ...prefs, plant: f.id })} style={artVars(f)}>
                   <span className="theme-swatch" style={{ background: swatchBg(f) }}>
                     <FlowerArt flower={f.id} />
@@ -242,6 +246,9 @@ function SettingsView({ m, prefs, setPrefs, open }: { m: Model; prefs: LocalPref
                   {plant === f.id && <span className="check"><Icon name="check" size={14} /></span>}
                 </button>
               ))}
+            </div>
+            </div>
+            ))}
             </div>
             <small>Only on this device.</small>
           </div>
@@ -308,10 +315,11 @@ function FlowerInfo({ id }: { id: string }) {
     <section className="flower-info" aria-label={`About the ${f.name}`}>
       <div className="flower-hero" style={{ ...artVars(f), background: swatchBg(f) }}><FlowerArt flower={f.id} /></div>
       <div className="flower-text">
-        <small className="eyebrow">About your flower</small>
+        <small className="eyebrow">About your flower{f.region === 'id' ? ' · native to Indonesia' : ''}</small>
         <h3>{f.name}</h3>
         <p className="latin"><i>{f.latin}</i> · {f.family}</p>
         <dl>
+          {f.local && <><dt>Indonesian name</dt><dd>{f.local}</dd></>}
           <dt>Origin</dt><dd>{f.origin}</dd>
           <dt>Where to find it</dt><dd>{f.where}</dd>
           <dt>In bloom</dt><dd>{f.season}</dd>

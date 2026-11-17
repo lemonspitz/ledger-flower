@@ -344,10 +344,185 @@ function Marigold() {
   );
 }
 
+// ───────── Flowers of Indonesia ─────────
+function Rafflesia() {
+  const spots = [[-20, -60], [10, -75], [30, -55], [-35, -85], [0, -95], [25, -90], [-10, -45], [40, -78], [-40, -62]];
+  return (
+    <g>
+      <Stem d="M-150 30C-90 10-40 30 10 20S110 0 150 20" w={8} />
+      <At y={-120}>
+        {Array.from({ length: 5 }, (_, i) => (
+          <g key={i} transform={`rotate(${i * 72})`}>
+            <Petal l={118} w={62} shape="wide" />
+            {spots.map(([x, y], k) => <circle key={k} cx={x * 0.9} cy={y} r={k % 3 ? 5 : 7} fill="#f6e4d6" opacity="0.85" />)}
+          </g>
+        ))}
+        <circle r="50" fill="var(--petal2)" />
+        <circle r="40" fill="var(--heart)" />
+        <circle r="30" fill="#2a0c09" />
+        {Array.from({ length: 14 }, (_, i) => <circle key={i} cx={20 * Math.cos(i * 0.45)} cy={20 * Math.sin(i * 0.45)} r="3" fill="var(--petal2)" opacity="0.7" />)}
+      </At>
+    </g>
+  );
+}
+function Titan() {
+  return (
+    <g>
+      <path d="M-30 40C-34 20-30 0-26 -10L26 -10C30 0 34 20 30 40Z" fill="var(--stem)" />
+      <path d="M-26 -10C-110 -40-120 -120-70 -150C-60 -110-40 -70 0 -60C40 -70 60 -110 70 -150C120 -120 110 -40 26 -10Z" fill="var(--petal2)" />
+      <path d="M-20 -14C-90 -44-96 -112-62 -138C-52 -102-34 -76 0 -68C34 -76 52 -102 62 -138C96 -112 90 -44 20 -14Z" fill="var(--petal1)" />
+      {[-70, -40, 40, 70].map((x, i) => <path key={i} d={`M${x * 0.5} -30C${x * 0.9} -60 ${x} -100 ${x * 0.95} -130`} stroke="var(--petal2)" strokeOpacity="0.45" strokeWidth="3" fill="none" />)}
+      <path d="M-16 -50C-20 -140-14 -230 0 -270C14 -230 20 -140 16 -50Z" fill="var(--heart)" stroke="var(--edge)" strokeOpacity="0.4" strokeWidth="2" />
+    </g>
+  );
+}
+function Edelweiss() {
+  const star = (x: number, y: number, s: number) => (
+    <At key={`${x}${y}`} x={x} y={y} s={s} r={x}>
+      <Ring n={9} l={40} w={10} shape="point" fill="var(--petal2)" off={20} />
+      <Ring n={9} l={34} w={9} shape="point" />
+      {[[0, 0], [-8, -6], [8, -5], [-6, 8], [7, 7]].map(([a, b], i) => <circle key={i} cx={a} cy={b} r="6" fill="var(--heart)" />)}
+    </At>
+  );
+  return (
+    <g>
+      <Stem d="M0 40C-4 -40 0 -110 0 -160M-2 -60C-40 -90-60 -120-70 -150M2 -80C40 -100 58 -120 66 -140" w={4} c="var(--stem)" />
+      {Array.from({ length: 8 }, (_, i) => <Leaf key={i} y={20 - i * 18} l={44} w={6} rot={i % 2 ? 58 : -58} fill="var(--stem)" />)}
+      {star(0, -175, 1)}{star(-72, -160, 0.8)}{star(68, -150, 0.75)}{star(-18, -128, 0.55)}
+    </g>
+  );
+}
+function BlackOrchid() {
+  const bloom = (x: number, y: number, s: number, r: number) => (
+    <At key={x} x={x} y={y} s={s} r={r}>
+      {[0, 130, 230].map((a) => <Petal key={a} l={58} w={14} shape="point" rot={a} />)}
+      <Petal l={52} w={11} shape="point" rot={-70} fill="var(--petal2)" /><Petal l={52} w={11} shape="point" rot={70} fill="var(--petal2)" />
+      <path d="M0 4C20 10 26 34 14 50C6 58-6 58-14 50C-26 34-20 10 0 4Z" fill="var(--heart)" />
+      {[-8, 0, 8].map((v) => <path key={v} d={`M${v * 0.6} 10L${v} 46`} stroke="#4a5a2a" strokeWidth="1.5" />)}
+    </At>
+  );
+  return (
+    <g>
+      <Leaf x={-20} y={40} l={150} w={22} rot={-28} /><Leaf x={0} y={40} l={130} w={20} rot={10} fill="var(--stem2)" />
+      <Stem d="M10 30C40 -60 60 -140 20 -230" w={4} />
+      {bloom(46, -110, 0.9, 20)}{bloom(42, -180, 0.8, -10)}{bloom(18, -236, 0.6, -20)}
+    </g>
+  );
+}
+function TigerOrchid() {
+  const spots = [[0, -20], [-6, -34], [6, -42], [0, -50], [-4, -14]];
+  const bloom = (x: number, y: number, s: number) => (
+    <At key={`${x}${y}`} x={x} y={y} s={s}>
+      {Array.from({ length: 5 }, (_, i) => (
+        <g key={i} transform={`rotate(${i * 72})`}><Petal l={54} w={18} />{spots.map(([a, b], k) => <circle key={k} cx={a} cy={b} r="4" fill="var(--heart)" opacity="0.85" />)}</g>
+      ))}
+      <circle r="8" fill="var(--heart)" />
+    </At>
+  );
+  return (
+    <g>
+      {[-30, -10, 12].map((x, i) => <path key={i} d={`M${x} 40C${x - 6} -40 ${x + 4} -100 ${x - 4} -140`} stroke="var(--stem)" strokeWidth="10" strokeLinecap="round" fill="none" />)}
+      {[-60, -40, 40, 60].map((r, i) => <Leaf key={i} x={-10} y={-120} l={90} w={10} rot={r} fill={i % 2 ? 'var(--stem2)' : 'var(--stem)'} />)}
+      <Stem d="M20 30C60 -40 90 -140 110 -250" w={4} />
+      {[[46, -40, 0.62], [70, -100, 0.62], [88, -160, 0.6], [102, -220, 0.55]].map(([x, y, s]) => bloom(x, y, s))}
+    </g>
+  );
+}
+function Vanda() {
+  const bloom = (x: number, y: number, s: number, r: number) => (
+    <At key={x} x={x} y={y} s={s} r={r}>
+      {Array.from({ length: 5 }, (_, i) => (
+        <g key={i} transform={`rotate(${i * 72 + 36})`}><Petal l={56} w={24} />{[[0, -18], [-8, -30], [8, -32], [0, -42], [-6, -48], [6, -46]].map(([a, b], k) => <circle key={k} cx={a} cy={b} r="3.6" fill="#8a4a2a" opacity="0.75" />)}</g>
+      ))}
+      <path d="M0 0C12 6 14 26 0 36C-14 26-12 6 0 0Z" fill="var(--heart)" />
+      <circle r="6" fill="#fff" />
+    </At>
+  );
+  return (
+    <g>
+      <Stem d="M0 40L0 -120" w={8} />
+      {Array.from({ length: 6 }, (_, i) => <Leaf key={i} y={20 - i * 22} l={86} w={11} rot={i % 2 ? 66 : -66} fill={i % 2 ? 'var(--stem2)' : 'var(--stem)'} />)}
+      <Stem d="M0 -100C30 -140 50 -180 50 -240" w={3} />
+      {bloom(32, -150, 0.85, 10)}{bloom(54, -218, 0.75, -10)}{bloom(-20, -170, 0.7, -20)}
+    </g>
+  );
+}
+function TorchGinger() {
+  return (
+    <g>
+      <Stem d="M0 40L0 -150" w={7} />
+      <At y={-170}>
+        <Ring n={14} l={86} w={20} shape="point" fill="var(--petal2)" off={12} />
+        <Ring n={12} l={66} w={18} shape="point" />
+        <Ring n={10} l={40} w={14} shape="point" off={18} fill="var(--heart)" />
+        <circle r="14" fill="var(--petal1)" />
+        {Array.from({ length: 10 }, (_, i) => <circle key={i} cx={56 * Math.cos(i * 0.63)} cy={56 * Math.sin(i * 0.63)} r="3" fill="#f6d04d" />)}
+      </At>
+      <Leaf x={-60} y={40} l={130} w={20} rot={-20} /><Leaf x={60} y={40} l={120} w={18} rot={24} fill="var(--stem2)" />
+    </g>
+  );
+}
+function Clove() {
+  const bud = (x: number, y: number, r: number) => (
+    <g key={`${x}${y}`} transform={`translate(${x} ${y}) rotate(${r})`}>
+      <path d="M-4 0L-5 -26L5 -26L4 0Z" fill="var(--heart)" />
+      <circle cy={-32} r="8" fill="var(--petal1)" />
+      {[-5, 5].map((v) => <path key={v} d={`M${v} -26L${v * 2} -30`} stroke="var(--heart)" strokeWidth="3" />)}
+    </g>
+  );
+  const open = (x: number, y: number) => (
+    <g key={`o${x}${y}`} transform={`translate(${x} ${y})`}>
+      <path d="M-4 0L-5 -24L5 -24L4 0Z" fill="var(--heart)" />
+      {Array.from({ length: 16 }, (_, i) => { const a = -Math.PI / 2 + (i - 7.5) * 0.17, L = 26 + (i % 3) * 5; return <g key={i}><path d={`M0 -24L${L * Math.cos(a)} ${-24 + L * Math.sin(a)}`} stroke="var(--petal2)" strokeWidth="1.6" /><circle cx={L * Math.cos(a)} cy={-24 + L * Math.sin(a)} r="2.2" fill="#f2d27a" /></g>; })}
+    </g>
+  );
+  return (
+    <g>
+      <Stem d="M0 40C-4 -40 4 -90 0 -150M0 -100C-30 -120-50 -130-70 -150M0 -110C30 -125 50 -140 70 -160" w={5} />
+      {[[-40, -80, -60], [40, -90, 60], [-60, -40, -40], [60, -40, 50]].map(([x, y, r], i) => <Leaf key={i} x={x * 0.4} y={y} l={70} w={20} rot={r} fill={i % 2 ? 'var(--stem2)' : 'var(--stem)'} />)}
+      {[[0, -150, 0], [-14, -146, -24], [14, -146, 24], [-70, -150, -10], [-82, -144, -34], [70, -160, 10], [84, -152, 32]].map(([x, y, r]) => bud(x, y, r))}
+      {open(-56, -152)}{open(56, -164)}
+    </g>
+  );
+}
+function Kenanga() {
+  const bloom = (x: number, y: number, s: number) => (
+    <At key={x} x={x} y={y} s={s}>
+      {[-40, -20, -4, 10, 26, 44].map((a, i) => (
+        <path key={i} d={`M0 0C${a * 0.4} 14 ${a * 0.9} 40 ${a * 0.7 + (i % 2 ? 8 : -8)} 86C${a * 0.7} 70 ${a * 0.6} 40 0 0Z`} fill={i % 2 ? 'var(--petal2)' : 'var(--petal1)'} stroke="var(--edge)" strokeOpacity="0.5" strokeWidth="1.6" />
+      ))}
+      <circle r="7" fill="var(--heart)" />
+    </At>
+  );
+  return (
+    <g>
+      <Stem d="M-140 -220C-60 -200 20 -200 140 -240M-40 -205C-30 -180-20 -170-10 -160M60 -214C64 -196 70 -186 76 -176" w={6} />
+      {[[-100, -212, 120], [-20, -204, 70], [100, -228, 120], [30, -210, 140]].map(([x, y, r], i) => <Leaf key={i} x={x} y={y} l={70} w={22} rot={r} fill={i % 2 ? 'var(--stem2)' : 'var(--stem)'} />)}
+      {bloom(-10, -158, 1)}{bloom(76, -174, 0.85)}{bloom(-90, -190, 0.65)}
+    </g>
+  );
+}
+function Cempaka() {
+  return (
+    <g>
+      <Stem d="M0 40C-4 -40 4 -110 0 -150" w={6} />
+      <Leaf y={-30} l={96} w={28} rot={-58} /><Leaf y={-80} l={90} w={26} rot={56} fill="var(--stem2)" />
+      <At y={-160}>
+        {[-58, -34, 34, 58].map((r) => <Petal key={r} l={92} w={13} shape="point" rot={r} fill="var(--petal2)" />)}
+        {[-46, -20, 20, 46].map((r) => <Petal key={r} l={102} w={14} shape="point" rot={r} />)}
+        <Petal l={108} w={15} shape="point" fill="var(--petal2)" />
+        <ellipse cy="-26" rx="7" ry="18" fill="var(--heart)" />
+      </At>
+    </g>
+  );
+}
+
 const ART: Record<FlowerId, () => ReactNode> = {
   iris: Iris, rose: Rose, sunflower: Sunflower, cherry: Cherry, lavender: Lavender, lotus: Lotus, tulip: Tulip, orchid: Orchid,
   jasmine: Jasmine, hibiscus: Hibiscus, lily: Lily, daisy: Daisy, poppy: Poppy, peony: Peony, magnolia: Magnolia,
   frangipani: Frangipani, strelitzia: Strelitzia, camellia: Camellia, bluebell: Bluebell, marigold: Marigold,
+  rafflesia: Rafflesia, titan: Titan, edelweiss: Edelweiss, blackorchid: BlackOrchid, tigerorchid: TigerOrchid,
+  vanda: Vanda, torchginger: TorchGinger, clove: Clove, kenanga: Kenanga, cempaka: Cempaka,
 };
 
 export function FlowerArt({ flower, className, style }: { flower: string; className?: string; style?: CSSProperties }) {
