@@ -69,8 +69,8 @@ npm run dist:mac
 npm run android
 ```
 
-- Windows build output: `release/Ledgerleaf Setup 1.9.0.exe` (installer; shipped here renamed to `Ledgerleaf-1.9.0-windows-setup.exe`) and a portable `.exe`. Building on Linux needs Wine.
-- macOS output: `release/Ledgerleaf-1.9.0-mac-arm64.zip` (Apple silicon) and `-x64.zip` (Intel). When building on Linux, `scripts/sign-mac.sh` (run by `npm run dist:mac`) adds an ad-hoc signature with [rcodesign](https://github.com/indygreg/apple-platform-rs) (`cargo install apple-codesign --locked`); Apple-silicon Macs won't launch an unsigned app.
+- Windows build output: `release/Ledgerleaf Setup 1.9.1.exe` (installer; shipped here renamed to `Ledgerleaf-1.9.1-windows-setup.exe`) and a portable `.exe`. Building on Linux needs Wine.
+- macOS output: `release/Ledgerleaf-1.9.1-mac-arm64.zip` (Apple silicon) and `-x64.zip` (Intel). When building on Linux, `scripts/sign-mac.sh` (run by `npm run dist:mac`) adds an ad-hoc signature with [rcodesign](https://github.com/indygreg/apple-platform-rs) (`cargo install apple-codesign --locked`); Apple-silicon Macs won't launch an unsigned app.
 - Android output: `android/app/build/outputs/apk/debug/app-debug.apk`. Needs the Android SDK (`ANDROID_HOME`) and JDK 21.
 
 The desktop apps are unsigned. Windows SmartScreen will ask for confirmation

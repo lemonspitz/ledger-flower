@@ -44,7 +44,7 @@ export function BillSplit({ m, init, ctx, onBack, onSaved, onScanned }: { m: Mod
   const [printedTax, setPrintedTax] = useState<number | undefined>();
   const [date, setDate] = useState(init.date);
   const [receiptTotal, setReceiptTotal] = useState<number | undefined>();
-  const [scan, setScan] = useState<{ busy?: boolean; progress?: number; error?: string; done?: string; text?: string }>({});
+  const [scan, setScan] = useState<{ busy?: boolean; progress?: number; stage?: 'reading' | 'checking'; error?: string; done?: string; text?: string }>({});
   const fileRef = useRef<HTMLInputElement>(null);
   const camRef = useRef<HTMLInputElement>(null);
   const [discount, setDiscount] = useState('');
@@ -94,7 +94,7 @@ export function BillSplit({ m, init, ctx, onBack, onSaved, onScanned }: { m: Mod
     if (!file) return;
     setScan({ busy: true, progress: 0 });
     try {
-      const r = await scanReceipt(file, m.categories, (p) => setScan({ busy: true, progress: p }));
+      const r = await scanReceipt(file, m.categories, (p, stage) => setScan({ busy: true, progress: p, stage }));
       if (!r.items.length) {
         setScan({ text: r.text, error: r.text.trim() ? 'No menu items could be picked out. Check the text below, try a flatter, closer photo, or type the items in.' : 'No text could be read. Try a sharper, well-lit photo with the receipt filling the frame.' });
         return;
@@ -163,7 +163,7 @@ export function BillSplit({ m, init, ctx, onBack, onSaved, onScanned }: { m: Mod
           <input ref={camRef} type="file" accept="image/*" capture="environment" hidden onChange={(e) => { void onFile(e.target.files?.[0]); e.target.value = ''; }} />
           {scan.busy ? (
             <div className="scan-busy" role="status">
-              <span>Reading receipt… {Math.round((scan.progress ?? 0) * 100)}%</span>
+              <span>{scan.stage === 'checking' ? 'Double-checking the numbers…' : 'Reading receipt…'} {Math.round((scan.progress ?? 0) * 100)}%</span>
               <div className="meter"><i style={{ width: `${Math.max(4, (scan.progress ?? 0) * 100)}%` }} /></div>
             </div>
           ) : (

@@ -432,7 +432,18 @@ function cleanForOcr(src: HTMLCanvasElement): HTMLCanvasElement {
   return out;
 }
 
-export async function scanReceipt(file: Blob, cats: Category[], onProgress: (p: number) => void): Promise<Receipt> {
+export type ScanStage = 'reading' | 'checking';
+/**
+ * Reads a receipt photo. Progress is one bar that only moves forward: the first reading fills it to 70%, and each
+ * extra pass (only when a reading doesn't add up) fills 70% of what is left, so it never jumps back to 0.
+ */
+export async function scanReceipt(file: Blob, cats: Category[], onProgress: (p: number, stage: ScanStage) => void): Promise<Receipt> {
+  let passNo = 0, shown = 0;
+  const report = (p: number) => {
+    const from = 1 - 0.3 ** passNo, to = 1 - 0.3 ** (passNo + 1);
+    shown = Math.max(shown, from + (to - from) * Math.min(1, Math.max(0, p)));
+    onProgress(shown, passNo ? 'checking' : 'reading');
+  };
   const [{ createWorker }, canvas] = await Promise.all([import('tesseract.js'), prepare(file)]);
   const base = new URL('./ocr/', document.baseURI).href;
   // If the engine or language files fail to load, tesseract.js waits forever; give up with a clear error instead.
@@ -440,13 +451,13 @@ export async function scanReceipt(file: Blob, cats: Category[], onProgress: (p: 
   const timeout = new Promise<never>((_, rej) => { timer = setTimeout(() => rej(new Error('the text reader didn’t start')), 45000); });
   const starting = createWorker('eng', 1, {
     workerPath: base + 'worker.min.js', corePath: base, langPath: base, workerBlobURL: false, gzip: false,
-    logger: (m: { status: string; progress: number }) => { if (m.status === 'recognizing text') onProgress(m.progress); },
+    logger: (m: { status: string; progress: number }) => { if (m.status === 'recognizing text') report(m.progress); },
     errorHandler: (e: unknown) => console.error('ocr worker', e),
   });
   const worker = await Promise.race([starting, timeout]).finally(() => clearTimeout(timer));
   try {
     await worker.setParameters({ preserve_interword_spaces: '1', tessedit_pageseg_mode: '6' as never });
-    const read = async (img: HTMLCanvasElement) => { const { data } = await worker.recognize(img); return { text: data.text, confidence: data.confidence }; };
+    const read = async (img: HTMLCanvasElement) => { const { data } = await worker.recognize(img); report(1); passNo++; return { text: data.text, confidence: data.confidence }; };
     // Find which way up the photo is: a sideways or upside-down receipt reads as low-confidence gibberish.
     const plain = canvas.contrast;
     let plainPage = plain;
