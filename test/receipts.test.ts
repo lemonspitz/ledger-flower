@@ -43,3 +43,9 @@ Total   85.000`, []);
   const ok = r.merchant === 'Sedjuk Bakmi & Kopi - Posbloc' && r.items.map((i) => i.name).join(' | ') === 'Bakmi Ayam Oven Komplit | Koopi Susu 2L | Teh Botol 7UP';
   console.log(ok ? 'PASS' : 'FAIL', 'shop name skips a garbled logo; l/1 and o/0 fixed in names:', r.merchant, '/', r.items.map((i) => i.name).join(' | '));
 }
+{
+  const cats = [{ id: 'cat_groceries', u: 0, name: 'Groceries', kind: 'expense', icon: '', subs: ['Meat & fish', 'Drinks', 'Pantry'] }, { id: 'cat_dining', u: 0, name: 'Dining out', kind: 'expense', icon: '', subs: ['Restaurants', 'Coffee'] }] as never;
+  const r = parseReceipt('Sedjuk Bakmi & Kopi - Posbloc\nTable : 15\nPax : 3\nBakso Kuah\n1x @35.000   35.000\nKopi Sedjuk\n1x @29.000   29.000\nSubtotal : 64.000\nService Charge : 3.200\nGrand Total : 67.200', cats);
+  const g = parseReceipt('GREENWAY MARKET\nBANANAS   1.86\nCHICKEN BREAST   9.75\nTOTAL   11.61', cats);
+  console.log(r.cat === 'cat_dining' && g.cat === 'cat_groceries' ? 'PASS' : 'FAIL', 'restaurant bills go to Dining out, shop receipts to Groceries:', r.cat, g.cat);
+}

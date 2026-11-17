@@ -110,7 +110,7 @@ const SUB_WORDS: [RegExp, string][] = [
 const CAT_WORDS: [RegExp, string, string?][] = [
   [/market|grocer|supermarket|foods?\b|fresh|farm|butcher|bakery|deli\b|mart\b|co-?op/i, 'cat_groceries'],
   [/coffee|caf[eé]|espresso|roasters/i, 'cat_dining', 'Coffee'],
-  [/restaurant|pizza|burger|grill|kitchen|bistro|diner|sushi|taco|noodle|bar\b|pub\b|eatery|steakhouse|ramen|bbq/i, 'cat_dining', 'Restaurants'],
+  [/restaurant|resto\b|rumah makan|warung|kedai|pizza|burger|grill|kitchen|bistro|diner|sushi|taco|noodle|bakmi|bakso|sate\b|ramen|\bbar\b|pub\b|eatery|steakhouse|bbq|kopi\b/i, 'cat_dining', 'Restaurants'],
   [/pharmacy|drug ?store|chemist|clinic|dental|medical|optic/i, 'cat_health', 'Pharmacy'],
   [/fuel|petrol|gas station|service station|unleaded|diesel/i, 'cat_transport', 'Fuel'],
   [/parking|garage/i, 'cat_transport', 'Parking'],
@@ -353,6 +353,8 @@ export function parseReceipt(text: string, cats: Category[]): Receipt {
   // Category: by merchant name first, then by what most items look like.
   const has = (id: string) => cats.find((c) => c.id === id && c.kind === 'expense');
   let cat = CAT_WORDS.find(([re, id]) => re.test(merchant) && has(id))?.[1];
+  // A service charge, table number, guest count or "dine in" means a restaurant bill, whatever the dishes are called.
+  if (!cat && has('cat_dining') && (charges.service > 0 || /\b(table|meja|pax|guests?|dine\s*in|take\s*away|server|waiter|pelayan)\b/i.test(text))) cat = 'cat_dining';
   if (!cat) {
     const votes = new Map<string, number>();
     for (const c of cats.filter((x) => x.kind === 'expense')) { const n = items.filter((i) => guessSub(i.name, c)).length; if (n) votes.set(c.id, n); }
