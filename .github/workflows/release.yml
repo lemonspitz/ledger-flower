@@ -1,6 +1,8 @@
-# Builds every installer and publishes a GitHub release when a version tag (v1.2.3) is pushed.
-# The tag must match "version" in package.json. Release notes come from the tag's message
-# (git tag -a v1.2.3 -m "notes"). Run it by hand from the Actions tab to rebuild an existing tag.
+# Builds every installer and publishes a GitHub release:
+#  - automatically, when a push to main changes "version" in package.json to one with no release yet
+#    (the release and its tag v<version> are created at that commit; notes list the commits since the last release);
+#  - when a version tag (v1.2.3) is pushed; the tag must match package.json and its message becomes the notes;
+#  - by hand from the Actions tab, to rebuild an existing tag.
 #
 # Android: set the repository secret ANDROID_KEYSTORE_B64 (base64 of the signing keystore) so
 # new APKs install as updates over existing ones. Without it the APK is skipped, because an APK
@@ -9,6 +11,8 @@ name: Release
 
 on:
   push:
+    branches: [main]
+    paths: [package.json, .github/workflows/release.yml]
     tags: ['v*']
   workflow_dispatch:
     inputs:
@@ -22,38 +26,54 @@ permissions:
 concurrency:
   group: release-${{ github.event.inputs.tag || github.ref_name }}
 
-env:
-  TAG: ${{ github.event.inputs.tag || github.ref_name }}
-
 jobs:
   check:
     runs-on: ubuntu-latest
     outputs:
       version: ${{ steps.v.outputs.version }}
+      tag: ${{ steps.v.outputs.tag }}
+      ref: ${{ steps.v.outputs.ref }}
+      go: ${{ steps.v.outputs.go }}
     steps:
       - uses: actions/checkout@v4
         with:
-          ref: ${{ env.TAG }}
+          ref: ${{ github.event.inputs.tag || github.sha }}
       - id: v
-        name: Tag matches package.json
+        name: Work out the version and whether to release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          INPUT_TAG: ${{ github.event.inputs.tag }}
         run: |
           version=$(node -p "require('./package.json').version")
-          [ "v$version" = "$TAG" ] || { echo "::error::Tag $TAG does not match package.json version $version"; exit 1; }
-          echo "version=$version" >> "$GITHUB_OUTPUT"
-      - uses: actions/setup-node@v4
+          tag="v$version"
+          echo "version=$version" >> "$GITHUB_OUTPUT"; echo "tag=$tag" >> "$GITHUB_OUTPUT"
+          if [ "$GITHUB_REF_TYPE" = tag ] || [ -n "$INPUT_TAG" ]; then
+            want="${INPUT_TAG:-$GITHUB_REF_NAME}"
+            [ "$want" = "$tag" ] || { echo "::error::Tag $want does not match package.json version $version"; exit 1; }
+            echo "ref=$want" >> "$GITHUB_OUTPUT"; echo "go=true" >> "$GITHUB_OUTPUT"
+          elif gh release view "$tag" --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
+            echo "Release $tag already exists; nothing to do."; echo "go=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "ref=$GITHUB_SHA" >> "$GITHUB_OUTPUT"; echo "go=true" >> "$GITHUB_OUTPUT"
+          fi
+      - if: steps.v.outputs.go == 'true'
+        uses: actions/setup-node@v4
         with:
           node-version: 22
           cache: npm
-      - run: npm ci
-      - run: npm test
+      - if: steps.v.outputs.go == 'true'
+        run: npm ci
+      - if: steps.v.outputs.go == 'true'
+        run: npm test
 
   android:
     needs: check
+    if: needs.check.outputs.go == 'true'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
         with:
-          ref: ${{ env.TAG }}
+          ref: ${{ needs.check.outputs.ref }}
       - name: Signing key
         id: key
         env:
@@ -90,11 +110,12 @@ jobs:
 
   windows:
     needs: check
+    if: needs.check.outputs.go == 'true'
     runs-on: windows-latest
     steps:
       - uses: actions/checkout@v4
         with:
-          ref: ${{ env.TAG }}
+          ref: ${{ needs.check.outputs.ref }}
       - uses: actions/setup-node@v4
         with:
           node-version: 22
@@ -115,11 +136,12 @@ jobs:
 
   mac:
     needs: check
+    if: needs.check.outputs.go == 'true'
     runs-on: macos-latest
     steps:
       - uses: actions/checkout@v4
         with:
-          ref: ${{ env.TAG }}
+          ref: ${{ needs.check.outputs.ref }}
       - uses: actions/setup-node@v4
         with:
           node-version: 22
@@ -146,12 +168,12 @@ jobs:
 
   publish:
     needs: [check, android, windows, mac]
-    if: ${{ !cancelled() && needs.check.result == 'success' && needs.windows.result == 'success' && needs.mac.result == 'success' }}
+    if: ${{ !cancelled() && needs.check.outputs.go == 'true' && needs.windows.result == 'success' && needs.mac.result == 'success' }}
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
         with:
-          ref: ${{ env.TAG }}
+          ref: ${{ needs.check.outputs.ref }}
           fetch-depth: 0
       - uses: actions/download-artifact@v4
         with:
@@ -160,14 +182,21 @@ jobs:
       - name: Create or update the release
         env:
           GH_TOKEN: ${{ github.token }}
+          TAG: ${{ needs.check.outputs.tag }}
+          REF: ${{ needs.check.outputs.ref }}
         run: |
           git fetch --force --tags origin
-          notes=$(git for-each-ref "refs/tags/$TAG" --format='%(contents)' | sed '/^-----BEGIN PGP/,$d')
+          if [ "$(git cat-file -t "refs/tags/$TAG" 2>/dev/null)" = tag ]; then
+            notes=$(git for-each-ref "refs/tags/$TAG" --format='%(contents)' | sed '/^-----BEGIN PGP/,$d')
+          else
+            prev=$(git describe --tags --abbrev=0 --match 'v*' "$REF^" 2>/dev/null || git describe --tags --abbrev=0 "$REF^" 2>/dev/null || true)
+            notes=$(git log --no-merges --format='- %s' ${prev:+"$prev.."}"$REF" | head -40)
+          fi
           [ -n "$notes" ] || notes="Ledger Flower ${TAG#v}"
           printf '%s\n\n%s\n' "$notes" "**Web version:** https://lemonspitz.github.io/ledger-flower/" > notes.md
-          ls -la files
+          cat notes.md; ls -la files
           if gh release view "$TAG" >/dev/null 2>&1; then
             gh release upload "$TAG" files/* --clobber
           else
-            gh release create "$TAG" files/* --title "Ledger Flower ${TAG#v}" --notes-file notes.md --verify-tag
+            gh release create "$TAG" files/* --target "$REF" --title "Ledger Flower ${TAG#v}" --notes-file notes.md
           fi

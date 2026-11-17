@@ -123,14 +123,19 @@ xattr -cr "/Applications/Ledger Flower.app"
 
 ## Releases
 
-Pushing a version tag publishes a release with every installer, built on GitHub's machines by `.github/workflows/release.yml`:
+Releases are built on GitHub's machines by `.github/workflows/release.yml`. **To publish a new version, bump `version` in `package.json` and push to `main`.** If that version has no release yet, the workflow runs the tests, builds the Android APK, the Windows installer and portable `.exe` and both Mac zips (ad-hoc signed), then creates the release and its tag `v<version>`. The notes list the commits since the previous release.
+
+Pushing a tag yourself works too; it must match `package.json`, and an annotated tag's message becomes the notes:
 
 ```bash
-git tag -a v1.12.0 -m "What changed in this version"
-git push origin v1.12.0
+git tag -a v1.13.0 -m "What changed in this version"
 ```
 
-The tag must match `version` in `package.json`, and the tag message becomes the release notes. The workflow runs the tests, builds the Android APK, the Windows installer and portable `.exe` and both Mac zips (ad-hoc signed), then creates the release. To rebuild an existing tag, run **Release** from the Actions tab and enter the tag.
+```bash
+git push origin v1.13.0
+```
+
+To rebuild an existing release, run **Release** from the Actions tab and enter its tag; the files are replaced.
 
 The APK is signed with the key in the repository secret `ANDROID_KEYSTORE_B64` (the keystore, base64-encoded), so each new APK installs as an update over the last. Without the secret the APK is skipped, since an APK signed with another key can't update the installed app.
 
