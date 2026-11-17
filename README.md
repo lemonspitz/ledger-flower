@@ -121,6 +121,19 @@ The desktop apps are unsigned. Windows SmartScreen will ask for confirmation
 xattr -cr "/Applications/Ledger Flower.app"
 ```
 
+## Releases
+
+Pushing a version tag publishes a release with every installer, built on GitHub's machines by `.github/workflows/release.yml`:
+
+```bash
+git tag -a v1.12.0 -m "What changed in this version"
+git push origin v1.12.0
+```
+
+The tag must match `version` in `package.json`, and the tag message becomes the release notes. The workflow runs the tests, builds the Android APK, the Windows installer and portable `.exe` and both Mac zips (ad-hoc signed), then creates the release. To rebuild an existing tag, run **Release** from the Actions tab and enter the tag.
+
+The APK is signed with the key in the repository secret `ANDROID_KEYSTORE_B64` (the keystore, base64-encoded), so each new APK installs as an update over the last. Without the secret the APK is skipped, since an APK signed with another key can't update the installed app.
+
 ## Layout
 
 | Path | What |

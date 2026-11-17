@@ -1,0 +1,173 @@
+# Builds every installer and publishes a GitHub release when a version tag (v1.2.3) is pushed.
+# The tag must match "version" in package.json. Release notes come from the tag's message
+# (git tag -a v1.2.3 -m "notes"). Run it by hand from the Actions tab to rebuild an existing tag.
+#
+# Android: set the repository secret ANDROID_KEYSTORE_B64 (base64 of the signing keystore) so
+# new APKs install as updates over existing ones. Without it the APK is skipped, because an APK
+# signed with a different key can't update the installed app.
+name: Release
+
+on:
+  push:
+    tags: ['v*']
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: Tag to build and publish (for example v1.12.0)
+        required: true
+
+permissions:
+  contents: write
+
+concurrency:
+  group: release-${{ github.event.inputs.tag || github.ref_name }}
+
+env:
+  TAG: ${{ github.event.inputs.tag || github.ref_name }}
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    outputs:
+      version: ${{ steps.v.outputs.version }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ env.TAG }}
+      - id: v
+        name: Tag matches package.json
+        run: |
+          version=$(node -p "require('./package.json').version")
+          [ "v$version" = "$TAG" ] || { echo "::error::Tag $TAG does not match package.json version $version"; exit 1; }
+          echo "version=$version" >> "$GITHUB_OUTPUT"
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - run: npm test
+
+  android:
+    needs: check
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ env.TAG }}
+      - name: Signing key
+        id: key
+        env:
+          KEYSTORE: ${{ secrets.ANDROID_KEYSTORE_B64 }}
+        run: |
+          if [ -z "$KEYSTORE" ]; then
+            echo "::warning::ANDROID_KEYSTORE_B64 is not set, so the APK is skipped (it could not update the installed app)."
+            echo "ok=false" >> "$GITHUB_OUTPUT"; exit 0
+          fi
+          mkdir -p ~/.android && echo "$KEYSTORE" | base64 -d > ~/.android/debug.keystore
+          echo "ok=true" >> "$GITHUB_OUTPUT"
+      - if: steps.key.outputs.ok == 'true'
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - if: steps.key.outputs.ok == 'true'
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 21
+      - if: steps.key.outputs.ok == 'true'
+        run: |
+          npm ci
+          npm run build
+          npx cap sync android
+          cd android && ./gradlew assembleDebug --no-daemon
+          mkdir -p ../out && cp app/build/outputs/apk/debug/app-debug.apk "../out/Ledger-Flower-${{ needs.check.outputs.version }}-android.apk"
+      - if: steps.key.outputs.ok == 'true'
+        uses: actions/upload-artifact@v4
+        with:
+          name: android
+          path: out/*
+
+  windows:
+    needs: check
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ env.TAG }}
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - run: npm run build
+      - run: npx electron-builder --win --x64 --publish never
+      - name: Collect
+        shell: bash
+        run: |
+          mkdir out
+          cp "release/Ledger Flower Setup ${{ needs.check.outputs.version }}.exe" "out/Ledger-Flower-${{ needs.check.outputs.version }}-windows-setup.exe"
+          cp release/Ledger-Flower-*-windows-portable.exe out/
+      - uses: actions/upload-artifact@v4
+        with:
+          name: windows
+          path: out/*
+
+  mac:
+    needs: check
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ env.TAG }}
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - run: npm run build
+      - run: npx electron-builder --mac --x64 --arm64 --publish never
+        env:
+          CSC_IDENTITY_AUTO_DISCOVERY: 'false'
+      - name: Ad-hoc sign (Apple-silicon Macs won't open an unsigned app)
+        run: |
+          mkdir out
+          for zip in release/*-mac-*.zip; do
+            work=$(mktemp -d)
+            ditto -x -k "$zip" "$work"
+            codesign --force --deep --sign - "$work/Ledger Flower.app"
+            codesign --verify --deep --strict "$work/Ledger Flower.app"
+            ditto -c -k --keepParent "$work/Ledger Flower.app" "out/$(basename "$zip")"
+          done
+      - uses: actions/upload-artifact@v4
+        with:
+          name: mac
+          path: out/*
+
+  publish:
+    needs: [check, android, windows, mac]
+    if: ${{ !cancelled() && needs.check.result == 'success' && needs.windows.result == 'success' && needs.mac.result == 'success' }}
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ env.TAG }}
+          fetch-depth: 0
+      - uses: actions/download-artifact@v4
+        with:
+          path: files
+          merge-multiple: true
+      - name: Create or update the release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          git fetch --force --tags origin
+          notes=$(git for-each-ref "refs/tags/$TAG" --format='%(contents)' | sed '/^-----BEGIN PGP/,$d')
+          [ -n "$notes" ] || notes="Ledger Flower ${TAG#v}"
+          printf '%s\n\n%s\n' "$notes" "**Web version:** https://lemonspitz.github.io/ledger-flower/" > notes.md
+          ls -la files
+          if gh release view "$TAG" >/dev/null 2>&1; then
+            gh release upload "$TAG" files/* --clobber
+          else
+            gh release create "$TAG" files/* --title "Ledger Flower ${TAG#v}" --notes-file notes.md --verify-tag
+          fi
