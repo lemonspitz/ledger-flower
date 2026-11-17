@@ -1,8 +1,29 @@
 # Ledger Flower
 
-A personal budgeting app for Android, Windows and macOS that keeps every device
+A personal budgeting app for Android, iPhone, Windows, macOS and the web that keeps every device
 in step in real time. One codebase (React + TypeScript), packaged with
-Capacitor for Android and Electron for desktop.
+Capacitor for Android and iPhone, Electron for desktop, and as an installable web app.
+
+**Try it in your browser:** https://lemonspitz.github.io/ledger-flower/ · **Downloads:** [Releases](https://github.com/lemonspitz/ledger-flower/releases)
+
+## Screenshots
+
+![Overview on desktop with the Iris theme](docs/screenshots/desktop-overview.png)
+
+| Overview | Budgets | About your flower |
+| :---: | :---: | :---: |
+| <img src="docs/screenshots/phone-overview.png" alt="Overview on a phone, Cherry Blossom theme" width="260"> | <img src="docs/screenshots/phone-budgets.png" alt="Budgets on a phone" width="260"> | <img src="docs/screenshots/phone-flower-info.png" alt="Field guide for the Moon Orchid theme" width="260"> |
+
+![Insights in dark mode with the Sacred Lotus theme](docs/screenshots/desktop-insights-dark.png)
+
+<details>
+<summary>All 20 flower themes</summary>
+
+![The 20 flower themes in the theme picker](docs/screenshots/flower-themes.png)
+
+</details>
+
+*Screenshots use the built-in sample data.*
 
 ## What it does
 
