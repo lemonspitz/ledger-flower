@@ -413,8 +413,8 @@ export function Insights({ m, go }: ViewProps) {
 }
 
 // ───────────────────────── Accounts & recurring ─────────────────────────
-const TYPE_LABEL = { bank: 'Bank account', savings: 'Savings', card: 'Credit card', cash: 'Cash' } as const;
-const TYPE_ICON = { bank: '🏦', savings: '🐖', card: '💳', cash: '💵' } as const;
+const TYPE_LABEL = { bank: 'Bank account', savings: 'Savings', card: 'Credit card', cash: 'Cash', owed: 'Money friends owe you' } as const;
+const TYPE_ICON = { bank: '🏦', savings: '🐖', card: '💳', cash: '💵', owed: '🤝' } as const;
 export function Accounts({ m, open, go }: ViewProps) {
   return (
     <div className="page">
@@ -432,6 +432,20 @@ export function Accounts({ m, open, go }: ViewProps) {
         </div>
         {m.accounts.length > 1 && <button className="btn pad" onClick={() => open({ k: 'tx', preset: { type: 'transfer' } })}>Transfer between accounts</button>}
       </Card>
+      {m.owed.size > 0 && (
+        <Card title="Owed to me" sub={`From split bills you paid · ${m.fmt([...m.owed.values()].reduce((a, b) => a + b, 0))} in total`}>
+          <div className="tx-list flush">
+            {[...m.owed].sort((a, b) => b[1] - a[1]).map(([who, amt]) => (
+              <div key={who} className="tx static">
+                <span className="tx-ic avatar-ic">{who.slice(0, 1).toUpperCase()}</span>
+                <button className="tx-main as-btn" onClick={() => go('transactions', { acc: 'acc_owed', q: who })}><b>{who}</b><small>{amt > 0 ? 'owes you' : 'you owe back'} · view history</small></button>
+                <span className="tx-amt">{m.fmt(Math.abs(amt))}</span>
+                {amt > 0 && <button className="btn small" onClick={() => open({ k: 'settle', who, amount: amt })}>Settle</button>}
+              </div>
+            ))}
+          </div>
+        </Card>
+      )}
       <Card title="Recurring" sub="Bills, subscriptions and paychecks that enter themselves" action={<button className="btn small" onClick={() => open({ k: 'recurring' })}><Icon name="plus" size={14} />Add</button>}>
         {m.recurring.length ? (
           <div className="tx-list flush">

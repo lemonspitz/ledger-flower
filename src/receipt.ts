@@ -4,13 +4,13 @@
 import { today, ymd, type Category } from './store';
 
 export interface ReceiptItem { name: string; amount: number; sub?: string }
-export interface Receipt { merchant: string; date: string; total: number; items: ReceiptItem[]; cat?: string; text: string; pay?: PaidWith }
+export interface Receipt { merchant: string; date: string; total: number; items: ReceiptItem[]; cat?: string; text: string; pay?: PaidWith; charges?: { service: number; tax: number; servicePct?: number; taxPct?: number } }
 export interface PaidWith { kind: 'cash' | 'card' | 'qr'; name?: string; last4?: string }
 
 const QR_BRANDS: [RegExp, string][] = [
   [/\bgo-?pay\b/i, 'GoPay'], [/\bovo\b/i, 'OVO'], [/\bdana\b/i, 'DANA'], [/shopee\s?pay/i, 'ShopeePay'], [/link\s?aja/i, 'LinkAja'],
   [/pay\s?now/i, 'PayNow'], [/prompt\s?pay/i, 'PromptPay'], [/duit\s?now/i, 'DuitNow'], [/\bgcash\b/i, 'GCash'], [/alipay/i, 'Alipay'],
-  [/we\s?chat\s?pay/i, 'WeChat Pay'], [/\bpaytm\b/i, 'Paytm'], [/phone\s?pe/i, 'PhonePe'], [/\bqris\b/i, 'QRIS'], [/\bqr\b/i, ''],
+  [/we\s?chat\s?pay/i, 'WeChat Pay'], [/\bpaytm\b/i, 'Paytm'], [/phone\s?pe/i, 'PhonePe'], [/\bq\s?r\s?[i1lt|!]\s?[s5]\b/i, 'QRIS'], [/\bqr\b/i, ''],
 ];
 /** How the receipt says it was paid: a QR app, a card (with its last 4 digits when printed), or cash. */
 export function detectPayment(text: string): PaidWith | undefined {
@@ -29,7 +29,9 @@ const LINE_PRICE = new RegExp(String.raw`^(.*?)[\s:.*@=-]*(?:(${CUR})\s?)?(-|−
 const TOTAL = /\b(grand\s*total|total|amount\s*due|balance\s*due|to\s*pay|jumlah|tagihan|totale|totaal|gesamt|summe|betrag|importe|montant)\b|合計|合计/i;
 const NOT_TOTAL = /sub\s*-?\s*total|total\s*(tax|vat|savings?|items?|discount|qty|disc|hemat|item)|tax\s*total|points/i;
 const PAID = /\b(cash|change|tender|tunai|kembali(an)?|bar|r[uü]ckgeld|efectivo|cambio|esp[eè]ces|rendu|contanti|resto|kontant|card|visa|master\s?card|amex|debit|kartu|qris|ovo|gopay|dana)\b/i;
-const SKIP_ITEM = /sub\s*-?\s*total|\btotal\b|\btax\b|\bvat\b|\bgst\b|\bppn\b|\bpajak\b|\bmwst\b|\biva\b|\btva\b|\bchange\b|balance|tender|payment|\btip\b|gratuity|discount|diskon|coupon|savings|hemat|rounding|pembulatan|loyalty|points/i;
+const SERVICE = /\b(service|svc|serv\.?\s?ch(?:ar)?ge?|s\.?\s?charge|layanan|biaya\s+layanan)\b/i;
+const TAX = /\b(tax|pb\s?1|ppn|pajak|vat|gst|mwst|iva|tva)\b/i;
+const SKIP_ITEM = /\bservice\b|\bsvc\b|layanan|sub\s*-?\s*total|\btotal\b|\btax\b|\bvat\b|\bgst\b|\bppn\b|\bpb\s?1\b|\bpajak\b|\bmwst\b|\biva\b|\btva\b|\bchange\b|balance|tender|payment|\btip\b|gratuity|discount|diskon|coupon|savings|hemat|rounding|pembulatan|loyalty|points/i;
 
 /** Value of a printed number in hundredths. "17.500" is seventeen thousand five hundred; "17.50" is seventeen and a half. */
 function toMinor(raw: string) {
@@ -148,6 +150,18 @@ export function parseReceipt(text: string, cats: Category[]): Receipt {
   }
   const sum = items.reduce((a, i) => a + i.amount, 0);
 
+  // Service charge and tax lines, with the percentage when it is printed ("SERVICE 5%", "PB1 10%").
+  const charges = { service: 0, tax: 0, servicePct: undefined as number | undefined, taxPct: undefined as number | undefined };
+  for (let i = 0; i < lines.length; i++) {
+    const l = lines[i], p = priceAt(i);
+    const svc = SERVICE.test(l), tx = !svc && TAX.test(l) && !/incl|termasuk|inkl/i.test(l);
+    if (!svc && !tx) continue;
+    const pct = l.match(/(\d{1,2}(?:[.,]\d{1,2})?)\s?%/)?.[1];
+    if (svc) { if (p && p.value > 0) charges.service += p.value; if (pct) charges.servicePct = Number(pct.replace(',', '.')); }
+    else { if (p && p.value > 0) charges.tax += p.value; if (pct) charges.taxPct = Number(pct.replace(',', '.')); }
+  }
+
+
   let total = 0;
   const grand = totalLines.find((i) => /grand\s*total|amount\s*due|balance\s*due|to\s*pay/i.test(lines[i])) ?? totalLines[totalLines.length - 1];
   for (const i of grand !== undefined ? [grand, ...totalLines.filter((x) => x !== grand)] : []) {
@@ -171,7 +185,7 @@ export function parseReceipt(text: string, cats: Category[]): Receipt {
   }
   const c = cats.find((x) => x.id === cat);
   for (const i of items) i.sub = guessSub(i.name, c);
-  return { merchant, date: findDate(text) ?? today(), total, items, cat, text, pay: detectPayment(text) };
+  return { merchant, date: findDate(text) ?? today(), total, items, cat, text, pay: detectPayment(text), charges };
 }
 
 /** Sub-category for the receipt as a whole, e.g. "Coffee" for a café. */

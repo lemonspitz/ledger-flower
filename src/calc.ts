@@ -40,6 +40,13 @@ export function buildModel(data: Data) {
     else { bump(t.acc, -t.amount); bump(t.toAcc, t.amount); }
   }
   const netWorth = [...balances.values()].reduce((a, b) => a + b, 0);
+  // Friends' running balances from split bills: lent (to "Owed to me") minus repaid (out of it).
+  const owed = new Map<string, number>();
+  for (const t of txs) if (t.type === 'transfer' && t.who) {
+    const d = t.toAcc === 'acc_owed' ? t.amount : t.acc === 'acc_owed' ? -t.amount : 0;
+    if (d) owed.set(t.who, (owed.get(t.who) ?? 0) + d);
+  }
+  for (const [k, v] of owed) if (v === 0) owed.delete(k);
   const currency = (data.settings.settings as Settings | undefined)?.currency || 'USD';
   const methods = (live(data.settings).filter((r) => (r as PayMethod).type === 'method') as PayMethod[]).sort((a, b) => a.kind.localeCompare(b.kind) || a.name.localeCompare(b.name));
   const methodName = (p: PayMethod) => p.name + (p.last4 ? ` ••${p.last4}` : '');
@@ -47,7 +54,7 @@ export function buildModel(data: Data) {
   const nf0 = new Intl.NumberFormat(undefined, { style: 'currency', currency, maximumFractionDigits: 0 });
   const nfc = new Intl.NumberFormat(undefined, { style: 'currency', currency, notation: 'compact', maximumFractionDigits: 1 });
   return {
-    data, txs, accounts, categories, balances, months, netWorth, currency,
+    data, txs, accounts, owed, categories, balances, months, netWorth, currency,
     month: (m: string) => months.get(m) ?? emptyMonth(),
     methods,
     method: (id?: string) => methods.find((p) => p.id === id),

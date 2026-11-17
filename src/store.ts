@@ -6,10 +6,10 @@ export type Coll = 'accounts' | 'categories' | 'tx' | 'budgets' | 'goals' | 'rec
 export const COLLS: Coll[] = ['accounts', 'categories', 'tx', 'budgets', 'goals', 'recurring', 'settings'];
 
 export interface Base { id: string; u: number; del?: 1 }
-export interface Account extends Base { name: string; type: 'cash' | 'bank' | 'card' | 'savings'; opening: number }
+export interface Account extends Base { name: string; type: 'cash' | 'bank' | 'card' | 'savings' | 'owed'; opening: number }
 export interface Category extends Base { name: string; kind: 'expense' | 'income'; icon: string; subs?: string[] }
 export type TxType = 'expense' | 'income' | 'transfer';
-export interface Tx extends Base { date: string; amount: number; type: TxType; acc: string; toAcc?: string; cat?: string; sub?: string; note: string; rid?: string; pm?: PayKind; pmid?: string }
+export interface Tx extends Base { date: string; amount: number; type: TxType; acc: string; toAcc?: string; cat?: string; sub?: string; note: string; rid?: string; pm?: PayKind; pmid?: string; who?: string } // who: the friend a lent/repaid transfer is for
 export interface Budget extends Base { limit: number } // id === category id
 export interface Goal extends Base { name: string; target: number; saved: number; due?: string; icon: string }
 export interface Recurring extends Base { name: string; amount: number; type: 'expense' | 'income'; acc: string; cat: string; freq: 'weekly' | 'monthly' | 'yearly'; next: string }

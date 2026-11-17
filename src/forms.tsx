@@ -2,7 +2,8 @@ import { useRef, useState } from 'react';
 import { Capacitor } from '@capacitor/core';
 import { OPS, evalExpr, parseAmount, type Model } from './calc';
 import { put, remove, today, txId, uid, type Account, type Category, type Goal, type PayKind, type PayMethod, type Recurring, type Tx, type TxType } from './store';
-import { merchantSub, scanReceipt } from './receipt';
+import { merchantSub, scanReceipt, type Receipt } from './receipt';
+import { BillSplit, type BillInit } from './bill';
 import { Field, Icon, Modal, Seg } from './ui';
 
 const MOBILE = Capacitor.isNativePlatform() || /Android|iPhone|iPad/i.test(navigator.userAgent);
@@ -17,7 +18,8 @@ export type Dialog =
   | { k: 'account'; acc?: Account }
   | { k: 'recurring'; rec?: Recurring }
   | { k: 'category'; cat?: Category }
-  | { k: 'method'; method?: PayMethod; kind?: 'card' | 'qr' };
+  | { k: 'method'; method?: PayMethod; kind?: 'card' | 'qr' }
+  | { k: 'settle'; who: string; amount: number };
 
 export function Dialogs({ d, m, close }: { d: Dialog; m: Model; close: () => void }) {
   switch (d.k) {
@@ -28,6 +30,7 @@ export function Dialogs({ d, m, close }: { d: Dialog; m: Model; close: () => voi
     case 'account': return <AccountForm m={m} acc={d.acc} close={close} />;
     case 'recurring': return <RecurringForm m={m} rec={d.rec} close={close} />;
     case 'category': return <CategoryForm cat={d.cat} close={close} />;
+    case 'settle': return <SettleForm m={m} who={d.who} owed={d.amount} close={close} />;
     case 'method': return <MethodForm m={m} method={d.method} kind={d.kind} close={close} />;
   }
 }
@@ -65,6 +68,8 @@ function TxForm({ m, tx, preset, close }: { m: Model; tx?: Tx; preset?: Partial<
   const [items, setItems] = useState<ItemRow[]>([]);
   const [split, setSplit] = useState(false);
   const [pad, setPad] = useState(MOBILE);
+  const [lastScan, setLastScan] = useState<Receipt | null>(null);
+  const [bill, setBill] = useState<BillInit | null>(null);
   const fileRef = useRef<HTMLInputElement>(null);
   const camRef = useRef<HTMLInputElement>(null);
 
@@ -104,6 +109,7 @@ function TxForm({ m, tx, preset, close }: { m: Model; tx?: Tx; preset?: Partial<
       if (taxLine) rows.push({ name: 'Tax or unread lines', amt: (gap / 100).toFixed(2), sub: '' });
       setItems(rows);
       setSplit(false);
+      setLastScan(r);
       setScan({ text: r.text, done: `Read ${r.merchant ? `“${r.merchant}”` : 'the receipt'}: total ${m.fmt(r.total)}${r.items.length ? `, ${r.items.length} item${r.items.length === 1 ? '' : 's'}` : ''}.${taxLine ? ` Items add up to ${m.fmt(sum)}, so the other ${m.fmt(gap)} is listed as “Tax or unread lines”.` : r.items.length && Math.abs(gap) > 1 ? ` Items add up to ${m.fmt(sum)} — a line may have been missed or misread.` : ''} Please check before saving.` });
     } catch (e) {
       console.error('receipt scan', e);
@@ -122,7 +128,7 @@ function TxForm({ m, tx, preset, close }: { m: Model; tx?: Tx; preset?: Partial<
     e.preventDefault();
     if (!ok) return;
     const pay = type === 'expense' && pm ? { pm, pmid: pm === 'cash' ? undefined : m.methods.some((x) => x.id === pmid && x.kind === pm) ? pmid : undefined } : { pm: undefined, pmid: undefined };
-    const base = { date, type, acc, rid: tx?.rid, ...pay };
+    const base = { date, type, acc, rid: tx?.rid, who: type === 'transfer' ? tx?.who : undefined, ...pay };
     if (useSplit) {
       const where = note.trim();
       put('tx', ...items.filter((i) => parseAmount(i.amt) > 0).map((i) => ({
@@ -138,6 +144,13 @@ function TxForm({ m, tx, preset, close }: { m: Model; tx?: Tx; preset?: Partial<
     }
     close();
   };
+
+  const openBill = () => setBill({
+    place: note.trim(), date,
+    items: lastScan ? lastScan.items.map((i) => ({ name: i.name, amount: i.amount })) : [],
+    charges: lastScan?.charges, receiptTotal: lastScan?.total || undefined,
+  });
+  if (bill) return <BillSplit m={m} init={bill} ctx={{ acc, cat: sel, sub: subs.includes(sub) ? sub : undefined, pm, pmid: pm === 'cash' ? undefined : pmid }} onBack={() => setBill(null)} onSaved={close} />;
 
   return (
     <Modal title={tx ? 'Edit transaction' : 'New transaction'} onClose={close} footer={<Actions close={close} disabled={!ok} label={useSplit ? `Save ${items.length} items` : 'Save'} onDelete={tx ? () => remove('tx', tx.id) : undefined} />}>
@@ -156,10 +169,11 @@ function TxForm({ m, tx, preset, close }: { m: Model; tx?: Tx; preset?: Partial<
               <div className="btn-row tight">
                 {MOBILE && <button type="button" className="btn small" onClick={() => camRef.current?.click()}><Icon name="camera" size={15} />Scan receipt</button>}
                 <button type="button" className="btn small" onClick={() => fileRef.current?.click()}><Icon name="image" size={15} />{MOBILE ? 'From photos' : 'Scan receipt image'}</button>
-                {!scan.done && !scan.error && <small className="hint">Fills in the amount, date and items for you. Read on this device only.</small>}
+                <button type="button" className="btn small" onClick={openBill}><Icon name="split" size={15} />Bill &amp; split</button>
+                {!scan.done && !scan.error && <small className="hint">Scan fills in the amount, date and items for you, read on this device only. Bill &amp; split adds service and tax and divides a bill between friends.</small>}
               </div>
             )}
-            {scan.done && <p className="scan-note ok"><Icon name="check" size={14} />{scan.done}</p>}
+            {scan.done && <p className="scan-note ok"><Icon name="check" size={14} /><span>{scan.done} {lastScan && lastScan.items.length > 0 && <button type="button" className="link" onClick={openBill}>Split this bill</button>}</span></p>}
             {scan.error && <p className="scan-note bad"><Icon name="warn" size={14} />{scan.error}</p>}
             {scan.text !== undefined && !scan.busy && (
               <details className="scan-text">
@@ -345,6 +359,29 @@ function MethodForm({ m, method, kind: k0, close }: { m: Model; method?: PayMeth
   );
 }
 
+function SettleForm({ m, who, owed, close }: { m: Model; who: string; owed: number; close: () => void }) {
+  const accounts = m.accounts.filter((a) => a.type !== 'owed');
+  const [v, setV] = useState((owed / 100).toFixed(2));
+  const [acc, setAcc] = useState(accounts[0]?.id ?? '');
+  const [date, setDate] = useState(today());
+  const c = parseAmount(v);
+  const ok = c > 0 && !!acc;
+  return (
+    <Modal title={`${who} paid you back`} onClose={close} footer={<Actions close={close} label="Record payment" disabled={!ok} />}>
+      <form id="dlg" className="form" onSubmit={(e) => { e.preventDefault(); if (!ok) return;
+        put('tx', { id: txId(date), date, type: 'transfer', amount: c, acc: 'acc_owed', toAcc: acc, who, note: `${who} paid back` }); close(); }}>
+        <Field label="Amount received" hint={`${who} owes you ${m.fmt(owed)}. Enter less for a partial payment.`}>
+          <input autoFocus inputMode="decimal" value={v} onChange={(e) => setV(e.target.value)} />
+        </Field>
+        <div className="row2">
+          <Field label="Into account"><select value={acc} onChange={(e) => setAcc(e.target.value)}>{accounts.map((a) => <option key={a.id} value={a.id}>{a.name}</option>)}</select></Field>
+          <Field label="Date"><input type="date" value={date} onChange={(e) => setDate(e.target.value)} /></Field>
+        </div>
+      </form>
+    </Modal>
+  );
+}
+
 function BudgetForm({ m, cat, close }: { m: Model; cat: string; close: () => void }) {
   const cur = m.data.budgets[cat];
   const [v, setV] = useState(amt(cur && !cur.del ? cur.limit : 0));
@@ -413,7 +450,7 @@ function AccountForm({ m, acc, close }: { m: Model; acc?: Account; close: () => 
         <div className="row2">
           <Field label="Type">
             <select value={type} onChange={(e) => setType(e.target.value as Account['type'])}>
-              <option value="bank">Bank account</option><option value="savings">Savings</option><option value="card">Credit card</option><option value="cash">Cash</option>
+              <option value="bank">Bank account</option><option value="savings">Savings</option><option value="card">Credit card</option><option value="cash">Cash</option><option value="owed">Money friends owe me</option>
             </select>
           </Field>
           <Field label="Starting balance" hint="Use a minus sign for money owed."><input inputMode="decimal" value={opening} onChange={(e) => setOpening(e.target.value)} placeholder="0.00" /></Field>
