@@ -44,6 +44,10 @@ Capacitor for Android and iPhone, Electron for desktop, and as an installable we
 - **Excel report** – Settings → Your data → *Export Excel report* makes a workbook in your flower theme's colours: an **Overview** with headline numbers and three native Excel charts (income and spending by month, where the money went, balance over time), then tidy tables of **Transactions**, **Monthly**, **Categories** (with share bars and over-budget highlights) and **Accounts**. The tables are real Excel tables: styled headers, banded rows, frozen header, filters, true dates and numbers in your currency, no merged cells or subtotal rows, so sorting, pivots and formulas just work. The spreadsheet library loads only when you export.
 - **Tidy CSV** – one row per transaction, oldest first: ISO dates, signed amounts (spending negative), currency, category and payment method in their own columns, UTF-8 that Excel opens correctly.
 - **Data** – JSON backup/restore, light and dark themes, 30+ currencies.
+- **22 languages** – English, Bahasa Indonesia, Bahasa Melayu, Tagalog, ไทย, Tiếng Việt, 日本語, 한국어, 简体中文, 繁體中文, العربية (right-to-left), Türkçe, Русский, Français, Deutsch, Español, Português, Norsk, Dansk, Svenska, Suomi and Kiswahili. Follows the device language or pick one in Settings → Preferences. Dates, weekdays and plurals follow the language; built-in categories are translated while your own names stay as typed. The flower field guide is in English and Indonesian.
+- **App lock** – a 4–6 digit PIN on every device, plus fingerprint or face unlock on phones. Locks on opening and after leaving the app (immediately, 1 or 5 minutes). Only a salted PBKDF2 hash of the PIN is stored, on that device only.
+- **Reminders** (Android, iPhone) – a daily nudge to log spending (tap it to add a transaction), heads-ups before recurring bills, and alerts when a budget reaches 80% and 100%. Scheduled on the device; nothing is sent to a server.
+- **Home-screen widget** (Android) – this month's spending, budget left with a progress bar, today's spending, and a + button that opens Add transaction. Follows light/dark mode and your language.
 
 ## Web version
 
@@ -140,6 +144,10 @@ git push origin v1.13.0
 To rebuild an existing release, run **Release** from the Actions tab and enter its tag; the files are replaced.
 
 The APK is signed with the key in the repository secret `ANDROID_KEYSTORE_B64` (the keystore, base64-encoded), so each new APK installs as an update over the last. Without the secret the APK is skipped, since an APK signed with another key can't update the installed app.
+
+## Translations
+
+All interface text goes through `t()` in `src/i18n.ts`, with English as the key. `npm run i18n` collects every string into `src/locales/keys.ts` (new strings are appended, so existing translations keep their place) and checks each language file in `src/locales/` for length and matching `{placeholders}`; `npm test` runs the same check. Plurals use the language's own forms (`{ one, few, many, other }`). Only the active language is downloaded.
 
 ## Layout
 

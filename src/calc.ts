@@ -1,6 +1,8 @@
 import { useMemo } from 'react';
+import { getLocale, t } from './i18n';
 import { live, today, useData, ymd, type Data, type NumFmt, type PayMethod, type Settings, type Tx } from './store';
 
+const tl = t; // dayLabel has a local `t` (today)
 export const curMonth = () => today().slice(0, 7);
 export function addMonths(m: string, n: number) {
   const [y, mo] = m.split('-').map(Number);
@@ -9,15 +11,15 @@ export function addMonths(m: string, n: number) {
 }
 export const monthsBack = (n: number, end = curMonth()) => Array.from({ length: n }, (_, i) => addMonths(end, i - n + 1));
 export const monthName = (m: string, style: 'short' | 'long' = 'long') =>
-  new Date(Number(m.slice(0, 4)), Number(m.slice(5, 7)) - 1, 1).toLocaleDateString(undefined, style === 'long' ? { month: 'long', year: 'numeric' } : { month: 'short' });
+  new Date(Number(m.slice(0, 4)), Number(m.slice(5, 7)) - 1, 1).toLocaleDateString(getLocale(), style === 'long' ? { month: 'long', year: 'numeric' } : { month: 'short' });
 export const daysIn = (m: string) => new Date(Number(m.slice(0, 4)), Number(m.slice(5, 7)), 0).getDate();
 export const dayLabel = (d: string) => {
   const t = today();
-  if (d === t) return 'Today';
+  if (d === t) return tl('Today');
   const y = new Date(); y.setDate(y.getDate() - 1);
-  if (d === ymd(y)) return 'Yesterday';
+  if (d === ymd(y)) return tl('Yesterday');
   const [yy, mm, dd] = d.split('-').map(Number);
-  return new Date(yy, mm - 1, dd).toLocaleDateString(undefined, { weekday: 'short', month: 'short', day: 'numeric', year: yy === new Date().getFullYear() ? undefined : 'numeric' });
+  return new Date(yy, mm - 1, dd).toLocaleDateString(getLocale(), { weekday: 'short', month: 'short', day: 'numeric', year: yy === new Date().getFullYear() ? undefined : 'numeric' });
 };
 
 export interface MonthSum { inc: number; exp: number; cats: Map<string, number>; txs: Tx[] }
@@ -65,9 +67,9 @@ export function buildModel(data: Data) {
     /** "Cash", "Card · BCA ••4821", "QR · GoPay", or '' when not recorded. */
     payLabel(t: Pick<Tx, 'pm' | 'pmid'>) {
       if (!t.pm) return '';
-      if (t.pm === 'cash') return 'Cash';
+      if (t.pm === 'cash') return tl('Cash');
       const p = methods.find((x) => x.id === t.pmid);
-      return (t.pm === 'card' ? 'Card' : 'QR') + (p ? ` · ${methodName(p)}` : '');
+      return (t.pm === 'card' ? tl('Card') : 'QR') + (p ? ` · ${methodName(p)}` : '');
     },
     cat: (id?: string) => (id && data.categories[id] && !data.categories[id].del ? data.categories[id] : undefined),
     acc: (id?: string) => (id && data.accounts[id] && !data.accounts[id].del ? data.accounts[id] : undefined),

@@ -1,6 +1,6 @@
 {
   "name": "ledger-flower",
-  "version": "1.13.0",
+  "version": "1.14.0",
   "description": "Personal budgeting with real-time encrypted sync",
   "main": "electron/main.cjs",
   "scripts": {
@@ -12,7 +12,8 @@
     "dist:mac": "npm run build && electron-builder --mac --x64 --arm64 && ./scripts/sign-mac.sh",
     "android": "npm run build && cap sync android && cd android && ./gradlew assembleDebug",
     "relay": "node server/relay.mjs",
-    "test": "tsx test/receipts.test.ts",
+    "test": "tsx test/receipts.test.ts && node scripts/i18n-check.mjs",
+    "i18n": "node scripts/i18n-keys.mjs && node scripts/i18n-check.mjs",
     "ios": "npm run build && cap sync ios && cap open ios"
   },
   "author": {
@@ -89,7 +90,10 @@
   },
   "homepage": "https://github.com/lemonspitz/ledger-flower",
   "dependencies": {
+    "@aparajita/capacitor-biometric-auth": "^10.0.0",
+    "@capacitor/app": "^8.1.2",
     "@capacitor/ios": "^8.6.2",
+    "@capacitor/local-notifications": "^8.3.1",
     "@capacitor/status-bar": "^8.0.4",
     "exceljs": "^4.4.0",
     "fflate": "^0.8.2"

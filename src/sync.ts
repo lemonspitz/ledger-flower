@@ -245,7 +245,7 @@ class SyncEngine {
 export const sync = new SyncEngine();
 
 // ---------- device-local preferences (never synced) ----------
-export interface LocalPrefs { code?: string; relays: string[]; theme: 'auto' | 'light' | 'dark'; plant: string }
+export interface LocalPrefs { code?: string; relays: string[]; theme: 'auto' | 'light' | 'dark'; plant: string; lang?: string; lock?: import('./lock').LockPrefs; remind?: import('./reminders').ReminderPrefs }
 const LKEY = 'll.local.v1';
 export function loadPrefs(): LocalPrefs {
   try { return { relays: DEFAULT_RELAYS, theme: 'auto', plant: 'iris', ...JSON.parse(localStorage.getItem(LKEY) || '{}') }; } catch { return { relays: DEFAULT_RELAYS, theme: 'auto', plant: 'iris' }; }

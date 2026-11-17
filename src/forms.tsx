@@ -5,6 +5,7 @@ import { put, remove, today, txId, uid, type Account, type Category, type Goal, 
 import { merchantSub, type Receipt } from './receipt';
 import { BillSplit, type BillInit } from './bill';
 import { Field, Icon, Modal, Seg } from './ui';
+import { accLabel, catLabel, subLabel, t, tp } from './i18n';
 
 const MOBILE = Capacitor.isNativePlatform() || /Android|iPhone|iPad/i.test(navigator.userAgent);
 
@@ -35,12 +36,12 @@ export function Dialogs({ d, m, close }: { d: Dialog; m: Model; close: () => voi
   }
 }
 
-function Actions({ onDelete, close, label = 'Save', disabled }: { onDelete?: () => void; close: () => void; label?: string; disabled?: boolean }) {
+function Actions({ onDelete, close, label = t('Save'), disabled }: { onDelete?: () => void; close: () => void; label?: string; disabled?: boolean }) {
   return (
     <>
-      {onDelete && <button type="button" className="btn danger ghost" onClick={() => { onDelete(); close(); }}>Delete</button>}
+      {onDelete && <button type="button" className="btn danger ghost" onClick={() => { onDelete(); close(); }}>{t('Delete')}</button>}
       <span className="grow" />
-      <button type="button" className="btn ghost" onClick={close}>Cancel</button>
+      <button type="button" className="btn ghost" onClick={close}>{t('Cancel')}</button>
       <button type="submit" form="dlg" className="btn primary" disabled={disabled}>{label}</button>
     </>
   );
@@ -112,46 +113,46 @@ function TxForm({ m, tx, preset, close }: { m: Model; tx?: Tx; preset?: Partial<
   if (bill) return <BillSplit m={m} init={bill} ctx={{ acc, cat: sel, sub: subs.includes(sub) ? sub : undefined, pm, pmid: pm === 'cash' ? undefined : pmid }} onBack={() => setBill(null)} onSaved={close} onScanned={applyScan} />;
 
   return (
-    <Modal title={tx ? 'Edit transaction' : 'New transaction'} onClose={close} footer={<Actions close={close} disabled={!ok} label="Save" onDelete={tx ? () => remove('tx', tx.id) : undefined} />}>
+    <Modal title={tx ? t('Edit transaction') : t('New transaction')} onClose={close} footer={<Actions close={close} disabled={!ok} label={t('Save')} onDelete={tx ? () => remove('tx', tx.id) : undefined} />}>
       <form id="dlg" onSubmit={save} className="form">
-        <Seg value={type} onChange={setType} options={[['expense', 'Expense'], ['income', 'Income'], ['transfer', 'Transfer']]} />
+        <Seg value={type} onChange={setType} options={[['expense', t('Expense')], ['income', t('Income')], ['transfer', t('Transfer')]]} />
         {!tx && type === 'expense' && (
           <button type="button" className="bill-entry" onClick={openBill}>
             <span className="bill-entry-ic"><Icon name="split" size={20} /></span>
-            <span><b>Bill &amp; split</b><small>Scan a receipt or type the menu — adds service and tax, splits between friends</small></span>
+            <span><b>{t('Bill & split')}</b><small>{t('Scan a receipt or type the menu — adds service and tax, splits between friends')}</small></span>
             <Icon name="right" size={16} />
           </button>
         )}
         <div className="amount-in">
           <span>{type === 'expense' ? '−' : type === 'income' ? '+' : '⇄'}</span>
           <input autoFocus={!MOBILE} inputMode={pad && MOBILE ? 'none' : 'decimal'} placeholder="0" value={amount}
-            readOnly={pad && MOBILE} aria-label="Amount"
+            readOnly={pad && MOBILE} aria-label={t('Amount')}
             onChange={(e) => setAmount(e.target.value.replace(/[^\d.,+\-−*/×÷() ]/g, ''))}
             onKeyDown={(e) => { if (e.key === '=') { e.preventDefault(); const v = evalExpr(amount.replace(/[+\-−*/×÷\s]+$/, '')); if (v !== null) setAmount(fmtCalc(v)); } }} />
-          {<button type="button" className={`icon-btn calc-toggle${pad ? ' on' : ''}`} onClick={() => setPad(!pad)} aria-pressed={pad} aria-label={pad ? 'Hide calculator' : 'Show calculator'} title="Calculator"><Icon name="calc" /></button>}
+          {<button type="button" className={`icon-btn calc-toggle${pad ? ' on' : ''}`} onClick={() => setPad(!pad)} aria-pressed={pad} aria-label={pad ? t('Hide calculator') : t('Show calculator')} title={t('Calculator')}><Icon name="calc" /></button>}
         </div>
         {OPS.test(amount.replace(/^[-−]/, '')) && <p className="calc-result">= {m.fmt(cents)}</p>}
         {pad && <Keypad value={amount} onChange={setAmount} />}
         {type !== 'transfer' && (
-          <div className="chips" role="radiogroup" aria-label="Category">
+          <div className="chips" role="radiogroup" aria-label={t('Category')}>
             {cats.map((c) => (
               <button type="button" key={c.id} role="radio" aria-checked={sel === c.id} className={sel === c.id ? 'chip on' : 'chip'} onClick={() => { setCat(c.id); setSub(''); }}>
-                <span>{c.icon}</span>{c.name}
+                <span>{c.icon}</span>{catLabel(c)}
               </button>
             ))}
           </div>
         )}
         {type !== 'transfer' && selCat && (
           <div className="subs">
-            <span className="subs-label">{selCat.name} › sub-category</span>
-            <div className="chips small" role="radiogroup" aria-label="Sub-category">
-              {subs.map((x) => <button type="button" key={x} role="radio" aria-checked={sub === x} className={sub === x ? 'chip on' : 'chip'} onClick={() => setSub(sub === x ? '' : x)}>{x}</button>)}
+            <span className="subs-label">{t('{cat} › sub-category', { cat: catLabel(selCat) })}</span>
+            <div className="chips small" role="radiogroup" aria-label={t('Sub-category')}>
+              {subs.map((x) => <button type="button" key={x} role="radio" aria-checked={sub === x} className={sub === x ? 'chip on' : 'chip'} onClick={() => setSub(sub === x ? '' : x)}>{subLabel(x)}</button>)}
               {newSub === null ? (
-                <button type="button" className="chip add" onClick={() => setNewSub('')}><Icon name="plus" size={13} />New</button>
+                <button type="button" className="chip add" onClick={() => setNewSub('')}><Icon name="plus" size={13} />{t('New')}</button>
               ) : (
                 <span className="chip-in">
-                  <input autoFocus value={newSub} maxLength={30} placeholder="Name" aria-label="New sub-category" onChange={(e) => setNewSub(e.target.value)} onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); addSub(); } if (e.key === 'Escape') { e.stopPropagation(); setNewSub(null); } }} />
-                  <button type="button" className="btn small" onClick={addSub}>Add</button>
+                  <input autoFocus value={newSub} maxLength={30} placeholder={t('Name')} aria-label={t('New sub-category')} onChange={(e) => setNewSub(e.target.value)} onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); addSub(); } if (e.key === 'Escape') { e.stopPropagation(); setNewSub(null); } }} />
+                  <button type="button" className="btn small" onClick={addSub}>{t('Add')}</button>
                 </span>
               )}
             </div>
@@ -159,34 +160,34 @@ function TxForm({ m, tx, preset, close }: { m: Model; tx?: Tx; preset?: Partial<
         )}
         {type === 'expense' && (
           <div className="subs pay">
-            <span className="subs-label">Paid with</span>
-            <div className="chips small" role="radiogroup" aria-label="Paid with">
-              {([['cash', 'Cash', 'cash'], ['card', 'Card', 'card'], ['qr', 'QR', 'qr']] as const).map(([k, label, icon]) => (
+            <span className="subs-label">{t('Paid with')}</span>
+            <div className="chips small" role="radiogroup" aria-label={t('Paid with')}>
+              {([['cash', t('Cash'), 'cash'], ['card', t('Card'), 'card'], ['qr', 'QR', 'qr']] as const).map(([k, label, icon]) => (
                 <button type="button" key={k} role="radio" aria-checked={pm === k} className={pm === k ? 'chip on' : 'chip'} onClick={() => { setPm(pm === k ? undefined : k); setNewMethod(null); }}>
                   <Icon name={icon} size={15} />{label}
                 </button>
               ))}
             </div>
             {(pm === 'card' || pm === 'qr') && (
-              <div className="chips small" role="radiogroup" aria-label={pm === 'card' ? 'Which card' : 'Which bank or app'}>
+              <div className="chips small" role="radiogroup" aria-label={pm === 'card' ? t('Which card') : t('Which bank or app')}>
                 {m.methods.filter((x) => x.kind === pm).map((x) => (
                   <button type="button" key={x.id} role="radio" aria-checked={pmid === x.id} className={pmid === x.id ? 'chip on' : 'chip'}
                     onClick={() => { setPmid(pmid === x.id ? undefined : x.id); if (x.acc && m.acc(x.acc) && pmid !== x.id) setAcc(x.acc); }}>{m.methodName(x)}</button>
                 ))}
                 {newMethod === null ? (
-                  <button type="button" className="chip add" onClick={() => setNewMethod({ name: '', last4: '' })}><Icon name="plus" size={13} />{pm === 'card' ? 'New card' : 'New bank / app'}</button>
+                  <button type="button" className="chip add" onClick={() => setNewMethod({ name: '', last4: '' })}><Icon name="plus" size={13} />{pm === 'card' ? t('New card') : t('New bank / app')}</button>
                 ) : (
                   <span className="chip-in">
-                    <input autoFocus list={pm === 'qr' ? 'qr-apps' : 'card-names'} value={newMethod.name} maxLength={30} aria-label={pm === 'card' ? 'Card name' : 'Bank or app name'}
-                      placeholder={pm === 'card' ? 'e.g. BCA Debit' : 'e.g. GoPay'} onChange={(e) => setNewMethod({ ...newMethod, name: e.target.value })}
+                    <input autoFocus list={pm === 'qr' ? 'qr-apps' : 'card-names'} value={newMethod.name} maxLength={30} aria-label={pm === 'card' ? t('Card name') : t('Bank or app name')}
+                      placeholder={pm === 'card' ? t('e.g. {x}', { x: 'BCA Debit' }) : t('e.g. {x}', { x: 'GoPay' })} onChange={(e) => setNewMethod({ ...newMethod, name: e.target.value })}
                       onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); (e.currentTarget.parentElement?.querySelector('.btn') as HTMLButtonElement)?.click(); } if (e.key === 'Escape') { e.stopPropagation(); setNewMethod(null); } }} />
-                    {pm === 'card' && <input className="last4" inputMode="numeric" value={newMethod.last4} maxLength={4} placeholder="Last 4" aria-label="Last 4 digits (optional)" onChange={(e) => setNewMethod({ ...newMethod, last4: e.target.value.replace(/\D/g, '') })} />}
+                    {pm === 'card' && <input className="last4" inputMode="numeric" value={newMethod.last4} maxLength={4} placeholder={t('Last 4')} aria-label={t('Last 4 digits (optional)')} onChange={(e) => setNewMethod({ ...newMethod, last4: e.target.value.replace(/\D/g, '') })} />}
                     <button type="button" className="btn small" onClick={() => {
                       const name = newMethod.name.trim();
                       if (!name) return setNewMethod(null);
                       const rec: Omit<PayMethod, 'u'> = { id: 'pm_' + uid(), type: 'method', kind: pm, name, last4: pm === 'card' && newMethod.last4.length === 4 ? newMethod.last4 : undefined, acc };
                       put('settings', rec); setPmid(rec.id); setNewMethod(null);
-                    }}>Add</button>
+                    }}>{t('Add')}</button>
                   </span>
                 )}
               </div>
@@ -196,20 +197,20 @@ function TxForm({ m, tx, preset, close }: { m: Model; tx?: Tx; preset?: Partial<
           </div>
         )}
         <div className="row2">
-          <Field label={type === 'transfer' ? 'From' : 'Account'}>
-            <select value={acc} onChange={(e) => setAcc(e.target.value)}>{m.accounts.map((a) => <option key={a.id} value={a.id}>{a.name}</option>)}</select>
+          <Field label={type === 'transfer' ? t('From') : t('Account')}>
+            <select value={acc} onChange={(e) => setAcc(e.target.value)}>{m.accounts.map((a) => <option key={a.id} value={a.id}>{accLabel(a)}</option>)}</select>
           </Field>
           {type === 'transfer' ? (
-            <Field label="To">
-              <select value={toAcc} onChange={(e) => setToAcc(e.target.value)}>{m.accounts.filter((a) => a.id !== acc).map((a) => <option key={a.id} value={a.id}>{a.name}</option>)}</select>
+            <Field label={t('To')}>
+              <select value={toAcc} onChange={(e) => setToAcc(e.target.value)}>{m.accounts.filter((a) => a.id !== acc).map((a) => <option key={a.id} value={a.id}>{accLabel(a)}</option>)}</select>
             </Field>
           ) : (
-            <Field label="Date"><input type="date" value={date} onChange={(e) => setDate(e.target.value)} required /></Field>
+            <Field label={t('Date')}><input type="date" value={date} onChange={(e) => setDate(e.target.value)} required /></Field>
           )}
         </div>
-        {type === 'transfer' && <Field label="Date"><input type="date" value={date} onChange={(e) => setDate(e.target.value)} required /></Field>}
-        <Field label="Note"><input value={note} onChange={(e) => setNote(e.target.value)} placeholder={type === 'transfer' ? 'Optional' : 'Where or what for?'} maxLength={120} /></Field>
-        {type === 'transfer' && m.accounts.length < 2 && <p className="hint">Add a second account to record transfers.</p>}
+        {type === 'transfer' && <Field label={t('Date')}><input type="date" value={date} onChange={(e) => setDate(e.target.value)} required /></Field>}
+        <Field label={t('Note')}><input value={note} onChange={(e) => setNote(e.target.value)} placeholder={type === 'transfer' ? t('Optional') : t('Where or what for?')} maxLength={120} /></Field>
+        {type === 'transfer' && m.accounts.length < 2 && <p className="hint">{t('Add a second account to record transfers.')}</p>}
       </form>
     </Modal>
   );
@@ -234,9 +235,9 @@ function Keypad({ value, onChange }: { value: string; onChange: (v: string) => v
     onChange(current === '0' ? v.slice(0, -1) + k : v + k);
   };
   const keys: [string, string][] = [['C', 'fn'], ['÷', 'op'], ['×', 'op'], ['⌫', 'fn'], ['7', ''], ['8', ''], ['9', ''], ['−', 'op'], ['4', ''], ['5', ''], ['6', ''], ['+', 'op'], ['1', ''], ['2', ''], ['3', ''], ['=', 'eq'], ['0', 'zero'], ['.', '']];
-  const label: Record<string, string> = { C: 'Clear', '⌫': 'Delete', '÷': 'Divide', '×': 'Multiply', '−': 'Minus', '+': 'Plus', '=': 'Equals', '.': 'Decimal point' };
+  const label: Record<string, string> = { C: t('Clear'), '⌫': t('Delete'), '÷': t('Divide'), '×': t('Multiply'), '−': t('Minus'), '+': t('Plus'), '=': t('Equals'), '.': t('Decimal point') };
   return (
-    <div className="keypad" role="group" aria-label="Calculator">
+    <div className="keypad" role="group" aria-label={t('Calculator')}>
       {keys.map(([k, c]) => (
         <button type="button" key={k} className={c} onClick={() => press(k)} aria-label={label[k] ?? k}>{k === '⌫' ? <Icon name="back" size={22} /> : k === '.' ? decimalSeparator() : k}</button>
       ))}
@@ -256,25 +257,25 @@ function MethodForm({ m, method, kind: k0, close }: { m: Model; method?: PayMeth
   const used = method ? m.txs.filter((t) => t.pmid === method.id).length : 0;
   const ok = name.trim().length > 0 && (last4 === '' || /^\d{4}$/.test(last4));
   return (
-    <Modal title={method ? `Edit ${method.kind === 'card' ? 'card' : 'QR bank / app'}` : 'New payment method'} onClose={close}
+    <Modal title={method ? (method.kind === 'card' ? t('Edit card') : t('Edit QR bank / app')) : t('New payment method')} onClose={close}
       footer={<Actions close={close} disabled={!ok} onDelete={method ? () => remove('settings', method.id) : undefined} />}>
       <form id="dlg" className="form" onSubmit={(e) => { e.preventDefault(); if (!ok) return;
         put('settings', { id: method?.id ?? 'pm_' + uid(), type: 'method', kind, name: name.trim(), last4: kind === 'card' && last4 ? last4 : undefined, network: kind === 'card' && network ? network : undefined, acc: acc || undefined }); close(); }}>
-        {!method && <Seg value={kind} onChange={setKind} options={[['card', 'Card'], ['qr', 'QR bank / app']]} />}
-        <Field label={kind === 'card' ? 'Card name' : 'Bank or app'}>
-          <input autoFocus list={kind === 'qr' ? 'qr-apps-2' : undefined} value={name} maxLength={30} onChange={(e) => setName(e.target.value)} placeholder={kind === 'card' ? 'e.g. BCA Debit, Travel card' : 'e.g. GoPay, BCA mobile'} />
+        {!method && <Seg value={kind} onChange={setKind} options={[['card', t('Card')], ['qr', t('QR bank / app')]]} />}
+        <Field label={kind === 'card' ? t('Card name') : t('Bank or app')}>
+          <input autoFocus list={kind === 'qr' ? 'qr-apps-2' : undefined} value={name} maxLength={30} onChange={(e) => setName(e.target.value)} placeholder={kind === 'card' ? t('e.g. {x}', { x: 'BCA Debit' }) : t('e.g. {x}', { x: 'GoPay, BCA mobile' })} />
           <datalist id="qr-apps-2">{QR_APPS.map((x) => <option key={x} value={x} />)}</datalist>
         </Field>
         {kind === 'card' && (
           <div className="row2">
-            <Field label="Last 4 digits" hint="Optional. Helps match scanned receipts."><input inputMode="numeric" maxLength={4} value={last4} onChange={(e) => setLast4(e.target.value.replace(/\D/g, ''))} placeholder="4821" /></Field>
-            <Field label="Network"><select value={network} onChange={(e) => setNetwork(e.target.value)}><option value="">—</option>{CARD_NETWORKS.map((x) => <option key={x}>{x}</option>)}</select></Field>
+            <Field label={t('Last 4 digits')} hint={t('Optional. Helps match scanned receipts.')}><input inputMode="numeric" maxLength={4} value={last4} onChange={(e) => setLast4(e.target.value.replace(/\D/g, ''))} placeholder="4821" /></Field>
+            <Field label={t('Network')}><select value={network} onChange={(e) => setNetwork(e.target.value)}><option value="">—</option>{CARD_NETWORKS.map((x) => <option key={x} value={x}>{x === 'Other' ? t('Other') : x}</option>)}</select></Field>
           </div>
         )}
-        <Field label="Pays from account" hint="Optional. Picking this method fills in the account for you.">
-          <select value={acc} onChange={(e) => setAcc(e.target.value)}><option value="">No default</option>{m.accounts.map((a) => <option key={a.id} value={a.id}>{a.name}</option>)}</select>
+        <Field label={t('Pays from account')} hint={t('Optional. Picking this method fills in the account for you.')}>
+          <select value={acc} onChange={(e) => setAcc(e.target.value)}><option value="">{t('No default')}</option>{m.accounts.map((a) => <option key={a.id} value={a.id}>{accLabel(a)}</option>)}</select>
         </Field>
-        {used > 0 && <p className="hint">Used by {used} transaction{used === 1 ? '' : 's'}. Deleting it keeps them, marked as {kind === 'card' ? 'Card' : 'QR'} without a name.</p>}
+        {used > 0 && <p className="hint">{tp(used, 'Used by {n} transaction. Deleting it keeps them, marked as {kind} without a name.', 'Used by {n} transactions. Deleting it keeps them, marked as {kind} without a name.', { kind: kind === 'card' ? t('Card') : 'QR' })}</p>}
       </form>
     </Modal>
   );
@@ -288,15 +289,15 @@ function SettleForm({ m, who, owed, close }: { m: Model; who: string; owed: numb
   const c = parseAmount(v);
   const ok = c > 0 && !!acc;
   return (
-    <Modal title={`${who} paid you back`} onClose={close} footer={<Actions close={close} label="Record payment" disabled={!ok} />}>
+    <Modal title={t('{who} paid you back', { who })} onClose={close} footer={<Actions close={close} label={t('Record payment')} disabled={!ok} />}>
       <form id="dlg" className="form" onSubmit={(e) => { e.preventDefault(); if (!ok) return;
-        put('tx', { id: txId(date), date, type: 'transfer', amount: c, acc: 'acc_owed', toAcc: acc, who, note: `${who} paid back` }); close(); }}>
-        <Field label="Amount received" hint={`${who} owes you ${m.fmt(owed)}. Enter less for a partial payment.`}>
+        put('tx', { id: txId(date), date, type: 'transfer', amount: c, acc: 'acc_owed', toAcc: acc, who, note: t('{who} paid back', { who }) }); close(); }}>
+        <Field label={t('Amount received')} hint={t('{who} owes you {a}. Enter less for a partial payment.', { who, a: m.fmt(owed) })}>
           <input autoFocus inputMode="decimal" value={v} onChange={(e) => setV(e.target.value)} />
         </Field>
         <div className="row2">
-          <Field label="Into account"><select value={acc} onChange={(e) => setAcc(e.target.value)}>{accounts.map((a) => <option key={a.id} value={a.id}>{a.name}</option>)}</select></Field>
-          <Field label="Date"><input type="date" value={date} onChange={(e) => setDate(e.target.value)} /></Field>
+          <Field label={t('Into account')}><select value={acc} onChange={(e) => setAcc(e.target.value)}>{accounts.map((a) => <option key={a.id} value={a.id}>{accLabel(a)}</option>)}</select></Field>
+          <Field label={t('Date')}><input type="date" value={date} onChange={(e) => setDate(e.target.value)} /></Field>
         </div>
       </form>
     </Modal>
@@ -308,9 +309,9 @@ function BudgetForm({ m, cat, close }: { m: Model; cat: string; close: () => voi
   const [v, setV] = useState(amt(cur && !cur.del ? cur.limit : 0));
   const c = m.cat(cat);
   return (
-    <Modal title={`${c?.icon ?? ''} ${c?.name ?? 'Budget'} budget`} onClose={close} footer={<Actions close={close} onDelete={cur && !cur.del ? () => remove('budgets', cat) : undefined} />}>
+    <Modal title={`${c?.icon ?? ''} ${t('{cat} budget', { cat: catLabel(c) || t('Budget') })}`} onClose={close} footer={<Actions close={close} onDelete={cur && !cur.del ? () => remove('budgets', cat) : undefined} />}>
       <form id="dlg" className="form" onSubmit={(e) => { e.preventDefault(); const l = parseAmount(v); if (l > 0) put('budgets', { id: cat, limit: l }); else remove('budgets', cat); close(); }}>
-        <Field label="Monthly limit" hint="Applies to every month. Leave empty to stop tracking this category.">
+        <Field label={t('Monthly limit')} hint={t('Applies to every month. Leave empty to stop tracking this category.')}>
           <input autoFocus inputMode="decimal" value={v} onChange={(e) => setV(e.target.value)} placeholder="0.00" />
         </Field>
       </form>
@@ -326,17 +327,17 @@ function GoalForm({ goal, close }: { goal?: Goal; close: () => void }) {
   const [due, setDue] = useState(goal?.due ?? '');
   const ok = name.trim() && parseAmount(target) > 0;
   return (
-    <Modal title={goal ? 'Edit goal' : 'New savings goal'} onClose={close} footer={<Actions close={close} disabled={!ok} onDelete={goal ? () => remove('goals', goal.id) : undefined} />}>
+    <Modal title={goal ? t('Edit goal') : t('New savings goal')} onClose={close} footer={<Actions close={close} disabled={!ok} onDelete={goal ? () => remove('goals', goal.id) : undefined} />}>
       <form id="dlg" className="form" onSubmit={(e) => { e.preventDefault(); if (!ok) return; put('goals', { id: goal?.id ?? uid(), name: name.trim(), icon, target: parseAmount(target), saved: parseAmount(saved), due: due || undefined }); close(); }}>
         <div className="row-icon">
-          <Field label="Icon"><input value={icon} onChange={(e) => setIcon(e.target.value.slice(0, 4))} className="icon-in" /></Field>
-          <Field label="Name"><input autoFocus value={name} onChange={(e) => setName(e.target.value)} placeholder="e.g. Emergency fund" /></Field>
+          <Field label={t('Icon')}><input value={icon} onChange={(e) => setIcon(e.target.value.slice(0, 4))} className="icon-in" /></Field>
+          <Field label={t('Name')}><input autoFocus value={name} onChange={(e) => setName(e.target.value)} placeholder={t('e.g. {x}', { x: t('Emergency fund') })} /></Field>
         </div>
         <div className="row2">
-          <Field label="Target"><input inputMode="decimal" value={target} onChange={(e) => setTarget(e.target.value)} placeholder="0.00" /></Field>
-          <Field label="Saved so far"><input inputMode="decimal" value={saved} onChange={(e) => setSaved(e.target.value)} placeholder="0.00" /></Field>
+          <Field label={t('Target')}><input inputMode="decimal" value={target} onChange={(e) => setTarget(e.target.value)} placeholder="0.00" /></Field>
+          <Field label={t('Saved so far')}><input inputMode="decimal" value={saved} onChange={(e) => setSaved(e.target.value)} placeholder="0.00" /></Field>
         </div>
-        <Field label="Target date (optional)"><input type="date" value={due} onChange={(e) => setDue(e.target.value)} /></Field>
+        <Field label={t('Target date (optional)')}><input type="date" value={due} onChange={(e) => setDue(e.target.value)} /></Field>
       </form>
     </Modal>
   );
@@ -347,10 +348,10 @@ function FundForm({ m, goal, close }: { m: Model; goal: Goal; close: () => void 
   const [dir, setDir] = useState<'add' | 'take'>('add');
   const c = parseAmount(v);
   return (
-    <Modal title={`${goal.icon} ${goal.name}`} onClose={close} footer={<Actions close={close} label={dir === 'add' ? 'Add' : 'Withdraw'} disabled={!c} />}>
+    <Modal title={`${goal.icon} ${goal.name}`} onClose={close} footer={<Actions close={close} label={dir === 'add' ? t('Add') : t('Withdraw')} disabled={!c} />}>
       <form id="dlg" className="form" onSubmit={(e) => { e.preventDefault(); if (!c) return; put('goals', { ...goal, saved: Math.max(0, goal.saved + (dir === 'add' ? c : -c)) }); close(); }}>
-        <Seg value={dir} onChange={setDir} options={[['add', 'Add money'], ['take', 'Withdraw']]} />
-        <Field label="Amount" hint={`${m.fmt(goal.saved)} saved of ${m.fmt(goal.target)}`}>
+        <Seg value={dir} onChange={setDir} options={[['add', t('Add money')], ['take', t('Withdraw')]]} />
+        <Field label={t('Amount')} hint={t('{a} saved of {b}', { a: m.fmt(goal.saved), b: m.fmt(goal.target) })}>
           <input autoFocus inputMode="decimal" value={v} onChange={(e) => setV(e.target.value)} placeholder="0.00" />
         </Field>
       </form>
@@ -365,16 +366,16 @@ function AccountForm({ m, acc, close }: { m: Model; acc?: Account; close: () => 
   const neg = opening.trim().startsWith('-');
   const canDelete = acc && m.accounts.length > 1;
   return (
-    <Modal title={acc ? 'Edit account' : 'New account'} onClose={close} footer={<Actions close={close} disabled={!name.trim()} onDelete={canDelete ? () => remove('accounts', acc.id) : undefined} />}>
+    <Modal title={acc ? t('Edit account') : t('New account')} onClose={close} footer={<Actions close={close} disabled={!name.trim()} onDelete={canDelete ? () => remove('accounts', acc.id) : undefined} />}>
       <form id="dlg" className="form" onSubmit={(e) => { e.preventDefault(); if (!name.trim()) return; put('accounts', { id: acc?.id ?? uid(), name: name.trim(), type, opening: parseAmount(opening) * (neg ? -1 : 1) }); close(); }}>
-        <Field label="Name"><input autoFocus value={name} onChange={(e) => setName(e.target.value)} placeholder="e.g. Checking" /></Field>
+        <Field label={t('Name')}><input autoFocus value={name} onChange={(e) => setName(e.target.value)} placeholder={t('e.g. {x}', { x: t('Checking') })} /></Field>
         <div className="row2">
-          <Field label="Type">
+          <Field label={t('Type')}>
             <select value={type} onChange={(e) => setType(e.target.value as Account['type'])}>
-              <option value="bank">Bank account</option><option value="savings">Savings</option><option value="card">Credit card</option><option value="cash">Cash</option><option value="owed">Money friends owe me</option>
+              <option value="bank">{t('Bank account')}</option><option value="savings">{t('Savings')}</option><option value="card">{t('Credit card')}</option><option value="cash">{t('Cash')}</option><option value="owed">{t('Money friends owe me')}</option>
             </select>
           </Field>
-          <Field label="Starting balance" hint="Use a minus sign for money owed."><input inputMode="decimal" value={opening} onChange={(e) => setOpening(e.target.value)} placeholder="0.00" /></Field>
+          <Field label={t('Starting balance')} hint={t('Use a minus sign for money owed.')}><input inputMode="decimal" value={opening} onChange={(e) => setOpening(e.target.value)} placeholder="0.00" /></Field>
         </div>
       </form>
     </Modal>
@@ -392,24 +393,24 @@ function RecurringForm({ m, rec, close }: { m: Model; rec?: Recurring; close: ()
   const [cat, setCat] = useState(rec?.cat ?? '');
   const ok = name.trim() && parseAmount(amount) > 0 && acc;
   return (
-    <Modal title={rec ? 'Edit recurring item' : 'New recurring item'} onClose={close} footer={<Actions close={close} disabled={!ok} onDelete={rec ? () => remove('recurring', rec.id) : undefined} />}>
+    <Modal title={rec ? t('Edit recurring item') : t('New recurring item')} onClose={close} footer={<Actions close={close} disabled={!ok} onDelete={rec ? () => remove('recurring', rec.id) : undefined} />}>
       <form id="dlg" className="form" onSubmit={(e) => { e.preventDefault(); if (!ok) return; put('recurring', { id: rec?.id ?? uid(), name: name.trim(), type, amount: parseAmount(amount), freq, next, acc, cat: cats.some((c) => c.id === cat) ? cat : cats[0]?.id ?? '' }); close(); }}>
-        <Seg value={type} onChange={setType} options={[['expense', 'Bill / expense'], ['income', 'Income']]} />
+        <Seg value={type} onChange={setType} options={[['expense', t('Bill / expense')], ['income', t('Income')]]} />
         <div className="row2">
-          <Field label="Name"><input autoFocus value={name} onChange={(e) => setName(e.target.value)} placeholder="e.g. Rent" /></Field>
-          <Field label="Amount"><input inputMode="decimal" value={amount} onChange={(e) => setAmount(e.target.value)} placeholder="0.00" /></Field>
+          <Field label={t('Name')}><input autoFocus value={name} onChange={(e) => setName(e.target.value)} placeholder={t('e.g. {x}', { x: t('Rent') })} /></Field>
+          <Field label={t('Amount')}><input inputMode="decimal" value={amount} onChange={(e) => setAmount(e.target.value)} placeholder="0.00" /></Field>
         </div>
         <div className="row2">
-          <Field label="Repeats">
-            <select value={freq} onChange={(e) => setFreq(e.target.value as Recurring['freq'])}><option value="weekly">Every week</option><option value="monthly">Every month</option><option value="yearly">Every year</option></select>
+          <Field label={t('Repeats')}>
+            <select value={freq} onChange={(e) => setFreq(e.target.value as Recurring['freq'])}><option value="weekly">{t('Every week')}</option><option value="monthly">{t('Every month')}</option><option value="yearly">{t('Every year')}</option></select>
           </Field>
-          <Field label="Next date"><input type="date" value={next} onChange={(e) => setNext(e.target.value)} required /></Field>
+          <Field label={t('Next date')}><input type="date" value={next} onChange={(e) => setNext(e.target.value)} required /></Field>
         </div>
         <div className="row2">
-          <Field label="Category"><select value={cats.some((c) => c.id === cat) ? cat : cats[0]?.id} onChange={(e) => setCat(e.target.value)}>{cats.map((c) => <option key={c.id} value={c.id}>{c.icon} {c.name}</option>)}</select></Field>
-          <Field label="Account"><select value={acc} onChange={(e) => setAcc(e.target.value)}>{m.accounts.map((a) => <option key={a.id} value={a.id}>{a.name}</option>)}</select></Field>
+          <Field label={t('Category')}><select value={cats.some((c) => c.id === cat) ? cat : cats[0]?.id} onChange={(e) => setCat(e.target.value)}>{cats.map((c) => <option key={c.id} value={c.id}>{c.icon} {catLabel(c)}</option>)}</select></Field>
+          <Field label={t('Account')}><select value={acc} onChange={(e) => setAcc(e.target.value)}>{m.accounts.map((a) => <option key={a.id} value={a.id}>{accLabel(a)}</option>)}</select></Field>
         </div>
-        <p className="hint">The transaction is added automatically on each due date, on whichever device opens first.</p>
+        <p className="hint">{t('The transaction is added automatically on each due date, on whichever device opens first.')}</p>
       </form>
     </Modal>
   );
@@ -422,15 +423,15 @@ function CategoryForm({ cat, close }: { cat?: Category; close: () => void }) {
   const [subs, setSubs] = useState((cat?.subs ?? []).join(', '));
   const subList = [...new Set(subs.split(',').map((x) => x.trim().slice(0, 30)).filter(Boolean))];
   return (
-    <Modal title={cat ? 'Edit category' : 'New category'} onClose={close} footer={<Actions close={close} disabled={!name.trim()} onDelete={cat && cat.id !== 'cat_other' ? () => remove('categories', cat.id) : undefined} />}>
+    <Modal title={cat ? t('Edit category') : t('New category')} onClose={close} footer={<Actions close={close} disabled={!name.trim()} onDelete={cat && cat.id !== 'cat_other' ? () => remove('categories', cat.id) : undefined} />}>
       <form id="dlg" className="form" onSubmit={(e) => { e.preventDefault(); if (!name.trim()) return; put('categories', { id: cat?.id ?? 'cat_' + uid(), name: name.trim(), icon, kind, subs: subList }); close(); }}>
-        {!cat && <Seg value={kind} onChange={setKind} options={[['expense', 'Expense'], ['income', 'Income']]} />}
+        {!cat && <Seg value={kind} onChange={setKind} options={[['expense', t('Expense')], ['income', t('Income')]]} />}
         <div className="row-icon">
-          <Field label="Icon"><input value={icon} onChange={(e) => setIcon(e.target.value.slice(0, 4))} className="icon-in" /></Field>
-          <Field label="Name"><input autoFocus value={name} onChange={(e) => setName(e.target.value)} /></Field>
+          <Field label={t('Icon')}><input value={icon} onChange={(e) => setIcon(e.target.value.slice(0, 4))} className="icon-in" /></Field>
+          <Field label={t('Name')}><input autoFocus value={name} onChange={(e) => setName(e.target.value)} /></Field>
         </div>
-        <Field label="Sub-categories" hint="Separate with commas, e.g. Vegetables, Meat & fish, Dairy. Removing one here doesn’t change transactions already saved with it.">
-          <textarea rows={3} className="plain" value={subs} onChange={(e) => setSubs(e.target.value)} placeholder="Optional" />
+        <Field label={t('Sub-categories')} hint={t('Separate with commas, e.g. Vegetables, Meat & fish, Dairy. Removing one here doesn’t change transactions already saved with it.')}>
+          <textarea rows={3} className="plain" value={subs} onChange={(e) => setSubs(e.target.value)} placeholder={t('Optional')} />
         </Field>
       </form>
     </Modal>

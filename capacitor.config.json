@@ -2,5 +2,13 @@
   "appId": "app.ledgerleaf.budget",
   "appName": "Ledger Flower",
   "webDir": "dist",
-  "android": { "backgroundColor": "#f6f6f3" }
+  "android": {
+    "backgroundColor": "#f6f6f3"
+  },
+  "plugins": {
+    "LocalNotifications": {
+      "smallIcon": "ic_stat_flower",
+      "iconColor": "#5B3FC4"
+    }
+  }
 }

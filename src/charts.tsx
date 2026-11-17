@@ -59,7 +59,7 @@ export function ColumnChart({ labels, series, fmt, fmtAxis, height = 220, extra 
       {series.length > 1 && <Legend series={series} />}
       <div className="plot" style={{ height }} onMouseLeave={() => setHover(null)}>
         {w > 0 && (
-          <svg width={w} height={height} role="img" aria-label={series.map((s) => s.name).join(' and ') + ' by month'}>
+          <svg width={w} height={height} role="img" aria-label={series.map((s) => s.name).join(', ')}>
             {ticks.map((t) => (
               <g key={t}>
                 <line x1={padL} x2={w} y1={y(t)} y2={y(t)} className={t === 0 ? 'axis' : 'grid'} />

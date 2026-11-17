@@ -4,6 +4,8 @@
 <dict>
 	<key>NSCameraUsageDescription</key>
 	<string>Ledger Flower uses the camera to scan receipts in Bill &amp; split. Photos are read on your iPhone and never uploaded.</string>
+	<key>NSFaceIDUsageDescription</key>
+	<string>Ledger Flower can use Face ID to unlock the app when App lock is on.</string>
 	<key>NSPhotoLibraryUsageDescription</key>
 	<string>Ledger Flower opens receipt photos you choose so it can read the items and prices. Photos stay on your iPhone.</string>
 	<key>ITSAppUsesNonExemptEncryption</key>

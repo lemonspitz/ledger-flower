@@ -4,4 +4,7 @@
     <string name="title_activity_main">Ledger Flower</string>
     <string name="package_name">app.ledgerleaf.budget</string>
     <string name="custom_url_scheme">app.ledgerleaf.budget</string>
+    <string name="widget_description">This month’s spending and budget</string>
+    <string name="widget_open_app">Open Ledger Flower once to show your month here</string>
+    <string name="widget_add">Add transaction</string>
 </resources>

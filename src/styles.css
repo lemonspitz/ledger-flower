@@ -529,3 +529,33 @@ input, select, textarea { border-radius: 12px; }
 .unit-switch button { min-width: 34px; padding: 5px 9px; border-radius: 999px; font-size: 13px; font-weight: 600; color: var(--ink-2); }
 .unit-switch button.on { background: var(--raised); color: var(--accent-ink); box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08), 0 0 0 1px var(--ring); }
 .charge small { font-variant-numeric: tabular-nums; }
+
+/* ── App lock ── */
+.lock { position: fixed; inset: 0; z-index: 50; display: grid; place-items: center; padding: max(24px, env(safe-area-inset-top)) 16px max(24px, env(safe-area-inset-bottom)); overflow: auto; }
+.lock-art { position: absolute; inset: auto -10vmin -12vmin auto; width: min(70vmin, 520px); opacity: .35; pointer-events: none; }
+.lock-art svg { width: 100%; }
+.lock-box { position: relative; display: flex; flex-direction: column; align-items: center; gap: 12px; width: min(340px, 100%); padding: 28px 22px; border-radius: 28px;
+  background: var(--surface); -webkit-backdrop-filter: var(--blur); backdrop-filter: var(--blur); border: 1px solid var(--glass-edge); box-shadow: 0 24px 60px rgba(0,0,0,.18), inset 0 1px 0 var(--glass-hi); text-align: center; }
+.lock-box h1 { font-size: 20px; margin: 4px 0 0; }
+.pin-dots { display: flex; gap: 14px; margin: 6px 0 0; }
+.pin-dots i { width: 13px; height: 13px; border-radius: 50%; border: 2px solid var(--accent); transition: background .12s; }
+.pin-dots i.on { background: var(--accent); }
+.pin-dots.bad { animation: shake .35s; } .pin-dots.bad i { border-color: var(--bad, #c0392b); }
+@keyframes shake { 20%, 60% { transform: translateX(-8px); } 40%, 80% { transform: translateX(8px); } }
+.lock-msg { margin: 0; min-height: 20px; font-size: 13.5px; color: var(--bad-ink, #b42318); }
+.pin-pad { display: grid; grid-template-columns: repeat(3, 72px); gap: 12px; }
+.pin-pad > * { height: 72px; border-radius: 50%; }
+.pin-pad button { font-size: 26px; font-weight: 500; background: var(--raised); border: 1px solid var(--line); color: var(--ink); display: grid; place-items: center; }
+.pin-pad button:active { background: var(--accent-wash); }
+.pin-pad button.fn { background: transparent; border: 0; color: var(--accent-ink); }
+.pin-pad button:disabled { opacity: .45; }
+.lock-forgot { font-size: 13.5px; color: var(--ink-2); text-align: start; }
+.lock-forgot .btn-row { justify-content: flex-end; }
+.lock-form input[type=password] { letter-spacing: .4em; font-size: 20px; }
+.app.privacy { filter: blur(18px); }
+@media (prefers-reduced-motion: reduce) { .pin-dots.bad { animation: none; } }
+
+.remind .check svg { color: var(--accent-ink); }
+
+/* Right-to-left languages: chart text is positioned by the chart itself, so keep its own direction. */
+[dir='rtl'] svg text { direction: ltr; unicode-bidi: plaintext; }

@@ -5,6 +5,7 @@
 import { unzipSync, zipSync, strFromU8, strToU8 } from 'fflate';
 import { curMonth, monthsBack, type Model } from './calc';
 import type { Flower } from './flowers';
+import { catLabel, getLocale, t, tp } from './i18n';
 import type { Tx } from './store';
 
 // ─────────────────────────── shared helpers ───────────────────────────
@@ -144,8 +145,8 @@ export async function buildWorkbook(ExcelJS: ExcelJSLib, m: Model, flower: Flowe
   const inc = monthRows.reduce((a, r) => a + r.inc, 0), exp = monthRows.reduce((a, r) => a + r.exp, 0);
   const catTotals = new Map<string, number>();
   for (const r of monthRows) for (const [c, a] of r.cats) catTotals.set(c, (catTotals.get(c) ?? 0) + a);
-  const cats = [...catTotals].map(([id, a]) => ({ name: m.cat(id)?.name ?? 'Other', icon: m.cat(id)?.icon ?? '', amount: a, budget: m.data.budgets[id] && !m.data.budgets[id].del ? m.data.budgets[id].limit : 0 })).sort((a, b) => b.amount - a.amount);
-  const fmtMonth = (mo: string) => new Date(mo + '-01T00:00:00Z').toLocaleString('en', { month: 'short', year: 'numeric', timeZone: 'UTC' });
+  const cats = [...catTotals].map(([id, a]) => ({ name: catLabel(m.cat(id)) || t('Other'), icon: m.cat(id)?.icon ?? '', amount: a, budget: m.data.budgets[id] && !m.data.budgets[id].del ? m.data.budgets[id].limit : 0 })).sort((a, b) => b.amount - a.amount);
+  const fmtMonth = (mo: string) => new Date(mo + '-01T00:00:00Z').toLocaleString(getLocale(), { month: 'short', year: 'numeric', timeZone: 'UTC' });
 
   // ── a tidy data sheet: styled header, banded rows, frozen header, filters ──
   interface Col { header: string; key: string; width: number; fmt?: string; align?: 'left' | 'right' | 'center' }
@@ -193,16 +194,16 @@ export async function buildWorkbook(ExcelJS: ExcelJSLib, m: Model, flower: Flowe
   ov.getCell('B2').value = 'Ledger Flower';
   ov.getCell('B2').font = font({ size: 20, bold: true, color: { argb: 'FFFFFFFF' } });
   ov.getCell('B2').alignment = { vertical: 'bottom' };
-  ov.getCell('B3').value = `Report for ${fmtMonth(months[0])} – ${fmtMonth(months[11])}  ·  ${m.currency}  ·  exported ${now.toLocaleDateString('en', { day: 'numeric', month: 'short', year: 'numeric' })}  ·  ${flower.name} theme`;
+  ov.getCell('B3').value = [t('Report for {from} – {to}', { from: fmtMonth(months[0]), to: fmtMonth(months[11]) }), m.currency, t('exported {date}', { date: now.toLocaleDateString(getLocale(), { day: 'numeric', month: 'short', year: 'numeric' }) }), t('{name} theme', { name: t(flower.name) })].join('  ·  ');
   ov.getCell('B3').font = font({ size: 10.5, color: { argb: 'FF' + P.tint } });
   ov.getCell('B3').alignment = { vertical: 'top' };
   ov.getRow(4).height = 14;
 
   const tiles: [string, number | string, string, string?][] = [
-    ['Total balance', v(m.netWorth), `across ${m.accounts.filter((a) => a.type !== 'owed').length} accounts`],
-    ['Income', v(inc), 'last 12 months', P.income],
-    ['Spending', v(exp), 'last 12 months', P.spending],
-    ['Saved', v(inc - exp), inc ? `${Math.round(((inc - exp) / inc) * 100)}% of income` : '—', inc - exp >= 0 ? P.income : P.spending],
+    [t('Total balance'), v(m.netWorth), tp(m.accounts.filter((a) => a.type !== 'owed').length, 'across {n} account', 'across {n} accounts')],
+    [t('Income'), v(inc), t('last 12 months'), P.income],
+    [t('Spending'), v(exp), t('last 12 months'), P.spending],
+    [t('Saved'), v(inc - exp), inc ? t('{p}% of income', { p: Math.round(((inc - exp) / inc) * 100) }) : '—', inc - exp >= 0 ? P.income : P.spending],
   ];
   tiles.forEach(([label, value, sub, color], i) => {
     const c0 = 2 + i * 3;
@@ -216,7 +217,7 @@ export async function buildWorkbook(ExcelJS: ExcelJSLib, m: Model, flower: Flowe
     const s = ov.getCell(7, c0); s.value = sub; s.font = font({ size: 9.5, color: { argb: 'FF' + P.muted } }); s.alignment = { indent: 1, vertical: 'top' };
   });
   ov.getRow(5).height = 22; ov.getRow(6).height = 30; ov.getRow(7).height = 20;
-  ov.getCell('B49').value = 'Charts update when you change the Monthly and Categories sheets. Every sheet after this one is a plain table: filter, sort or pivot it freely.';
+  ov.getCell('B49').value = t('Charts update when you change the Monthly and Categories sheets. Every sheet after this one is a plain table: filter, sort or pivot it freely.');
   ov.getCell('B49').font = font({ size: 9.5, italic: true, color: { argb: 'FF' + P.muted } });
 
   // ── 2. Transactions ──
@@ -274,14 +275,14 @@ export async function buildWorkbook(ExcelJS: ExcelJSLib, m: Model, flower: Flowe
   const base = { text: P.text, muted: P.muted, grid: 'E3E5E1', catFmt: 'mmm yy' };
   const short = `${symTxt}#,##0`;
   return addCharts(buf, 0, [
-    { ...base, kind: 'col', title: 'Income and spending by month', legend: true, numFmt: short, from: [1, 8], to: [13, 26], catRef: `Monthly!$A$2:$A$${n + 1}`, cats: monthSerials,
+    { ...base, kind: 'col', title: t('Income and spending by month'), legend: true, numFmt: short, from: [1, 8], to: [13, 26], catRef: `Monthly!$A$2:$A$${n + 1}`, cats: monthSerials,
       series: [
         { name: 'income', nameRef: 'Monthly!$B$1', ref: `Monthly!$B$2:$B$${n + 1}`, values: monthly.map((r) => r.income), color: P.s1 },
         { name: 'spending', nameRef: 'Monthly!$C$1', ref: `Monthly!$C$2:$C$${n + 1}`, values: monthly.map((r) => r.spending), color: P.s2 },
       ] },
-    { ...base, kind: 'bar', title: 'Where the money went (12 months)', labels: true, numFmt: short, from: [1, 27], to: [7, 47], catRef: `Categories!$A$2:$A$${kc + 1}`, catFmt: 'General', cats: cats.slice(0, kc).map((c) => c.name),
+    { ...base, kind: 'bar', title: t('Where the money went (12 months)'), labels: true, numFmt: short, from: [1, 27], to: [7, 47], catRef: `Categories!$A$2:$A$${kc + 1}`, catFmt: 'General', cats: cats.slice(0, kc).map((c) => c.name),
       series: [{ name: 'spending', nameRef: 'Categories!$B$1', ref: `Categories!$B$2:$B$${kc + 1}`, values: cats.slice(0, kc).map((c) => v(c.amount)), color: P.accent }] },
-    { ...base, kind: 'line', title: 'Total balance at month end', numFmt: short, from: [7, 27], to: [13, 47], catRef: `Monthly!$A$2:$A$${n + 1}`, cats: monthSerials,
+    { ...base, kind: 'line', title: t('Total balance at month end'), numFmt: short, from: [7, 27], to: [13, 47], catRef: `Monthly!$A$2:$A$${n + 1}`, cats: monthSerials,
       series: [{ name: 'end_balance', nameRef: 'Monthly!$F$1', ref: `Monthly!$F$2:$F$${n + 1}`, values: monthly.map((r) => r.balance), color: P.ink }] },
   ]);
 }

@@ -1,4 +1,5 @@
 import { useEffect, type ReactNode } from 'react';
+import { t } from './i18n';
 
 const P: Record<string, string> = {
   home: 'M3 11l9-8 9 8M5 10v10h5v-6h4v6h5V10',
@@ -28,6 +29,10 @@ const P: Record<string, string> = {
   camera: 'M4 8h3l2-3h6l2 3h3v11H4zM12 16.5a3.5 3.5 0 100-7 3.5 3.5 0 000 7z',
   image: 'M4 5h16v14H4zM4 15l4.5-4.5 4 4 3-3L20 16M9 9.5h.01',
   up: 'M12 19V5M5 12l7-7 7 7', down: 'M12 5v14M5 12l7 7 7-7',
+  lock: 'M6 11h12v10H6zM8.5 11V7.5a3.5 3.5 0 017 0V11M12 15v2.5',
+  finger: 'M8.5 20c1-2 1.5-4.5 1.5-7.5a2 2 0 014 0c0 3.5-.6 6.5-2 9M5.5 17c.9-1.7 1.4-3.3 1.4-5a5.1 5.1 0 0110.2 0c0 1.4-.1 2.8-.3 4M17.5 19.5c.4-1 .7-2 .9-3M5 9.5A7.5 7.5 0 0119 8.5',
+  face: 'M4 8V5.5A1.5 1.5 0 015.5 4H8M16 4h2.5A1.5 1.5 0 0120 5.5V8M20 16v2.5a1.5 1.5 0 01-1.5 1.5H16M8 20H5.5A1.5 1.5 0 014 18.5V16M9 9.5v1M15 9.5v1M12 9.5v3.5h-1M9.5 16a3.5 3.5 0 005 0',
+  bell: 'M6 16V11a6 6 0 0112 0v5l1.5 2h-15zM10 20.5a2 2 0 004 0',
 };
 export function Icon({ name, size = 20 }: { name: string; size?: number }) {
   return (
@@ -46,7 +51,7 @@ export function Modal({ title, onClose, children, footer, wide }: { title: strin
   return (
     <div className="scrim" onMouseDown={(e) => e.target === e.currentTarget && onClose()}>
       <div className={wide ? 'modal wide' : 'modal'} role="dialog" aria-modal aria-label={title}>
-        <header><h2>{title}</h2><button className="icon-btn" onClick={onClose} aria-label="Close"><Icon name="x" /></button></header>
+        <header><h2>{title}</h2><button className="icon-btn" onClick={onClose} aria-label={t('Close')}><Icon name="x" /></button></header>
         <div className="modal-body">{children}</div>
         {footer && <footer>{footer}</footer>}
       </div>
@@ -85,9 +90,9 @@ export function Empty({ icon, title, children }: { icon: string; title: string; 
 }
 
 export function Delta({ now, prev, goodUp, label }: { now: number; prev: number; goodUp: boolean; label: string }) {
-  if (!prev) return <span className="delta flat">no data {label}</span>;
+  if (!prev) return <span className="delta flat">{t('no data {when}', { when: label })}</span>;
   const d = ((now - prev) / Math.abs(prev)) * 100;
-  if (Math.abs(d) < 0.5) return <span className="delta flat">same as {label}</span>;
+  if (Math.abs(d) < 0.5) return <span className="delta flat">{t('same as {when}', { when: label })}</span>;
   const good = d > 0 === goodUp;
-  return <span className={`delta ${good ? 'good' : 'bad'}`}><Icon name={d > 0 ? 'up' : 'down'} size={13} />{Math.abs(d).toFixed(0)}% vs {label}</span>;
+  return <span className={`delta ${good ? 'good' : 'bad'}`}><Icon name={d > 0 ? 'up' : 'down'} size={13} />{t('{p}% vs {when}', { p: Math.abs(d).toFixed(0), when: label })}</span>;
 }
