@@ -259,6 +259,9 @@ button.tx:hover { background: var(--wash); }
 .relay { display: flex; align-items: center; gap: 8px; font: 13px ui-monospace, monospace; flex-wrap: wrap; }
 .relay i { width: 8px; height: 8px; border-radius: 50%; background: var(--warn); } .relay i.open { background: var(--good); }
 .relay small { color: var(--ink-3); font-family: system-ui, sans-serif; }
+.sync-alone { width: 100%; padding: 12px 14px; border-radius: 12px; border: 1px solid color-mix(in oklab, var(--warn) 45%, transparent); background: color-mix(in oklab, var(--warn) 10%, transparent); font-size: 13.5px; }
+.sync-alone p { margin: 6px 0 0; color: var(--ink-2); }
+.sync-alone code { font-weight: 700; letter-spacing: .06em; }
 .confirm { margin-top: 14px; padding: 12px 14px; border-radius: 12px; background: var(--crit-track); display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
 .confirm p { flex: 1 1 240px; font-size: 13.5px; }
 .foot { text-align: center; font-size: 12.5px; color: var(--ink-3); }

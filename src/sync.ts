@@ -28,13 +28,16 @@ export const normalizeCode = (c: string) => {
   return raw.length === 20 ? raw.replace(/(.{4})(?=.)/g, '$1-') : null;
 };
 
-export interface RelayStatus { url: string; state: 'connecting' | 'open' | 'closed'; error?: string }
-export interface SyncStatus { on: boolean; relays: RelayStatus[]; lastSync: number; initial: boolean }
+export interface RelayStatus { url: string; state: 'connecting' | 'open' | 'closed'; error?: string; pausedUntil?: number }
+/** received: buckets that came in from the servers (i.e. from another device or an earlier session).
+ *  pending: changes still waiting for a server to accept them. */
+export interface SyncStatus { on: boolean; relays: RelayStatus[]; lastSync: number; initial: boolean; received: number; pending: number }
 
 interface Conn {
   url: string; ws?: WebSocket; state: RelayStatus['state']; error?: string; eose: boolean;
   seen: Map<string, string>; sent: Map<string, string>; queue: string[]; pump?: ReturnType<typeof setTimeout>;
   retry: number; timer?: ReturnType<typeof setTimeout>;
+  pausedUntil: number; strikes: number; pauseTimer?: ReturnType<typeof setTimeout>;
 }
 interface NEvent { id: string; pubkey: string; created_at: number; kind: number; tags: string[][]; content: string; sig: string }
 
@@ -66,7 +69,7 @@ class SyncEngine {
   private seenEvents = new Map<string, { b: string; dg: string }>();
   private chain: Promise<void> = Promise.resolve();
   private listeners = new Set<() => void>();
-  private status: SyncStatus = { on: false, relays: [], lastSync: 0, initial: false };
+  private status: SyncStatus = { on: false, relays: [], lastSync: 0, initial: false, received: 0, pending: 0 };
   private gen = 0;
 
   constructor() {
@@ -81,7 +84,10 @@ class SyncEngine {
   subscribe = (f: () => void) => { this.listeners.add(f); return () => { this.listeners.delete(f); }; };
   getStatus = () => this.status;
   private publish(patch: Partial<SyncStatus> = {}) {
-    this.status = { ...this.status, ...patch, relays: this.conns.map((c) => ({ url: c.url, state: c.state, error: c.error })) };
+    const now = Date.now();
+    const live = this.conns.filter((c) => c.state === 'open' && c.pausedUntil <= now);
+    const pending = live.length ? Math.min(...live.map((c) => c.queue.length + c.sent.size)) : 0;
+    this.status = { ...this.status, ...patch, pending, relays: this.conns.map((c) => ({ url: c.url, state: c.state, error: c.error, pausedUntil: c.pausedUntil > now ? c.pausedUntil : undefined })) };
     this.listeners.forEach((f) => f());
   }
 
@@ -96,17 +102,17 @@ class SyncEngine {
     const raw = hkdf(sha256, ikm, salt, utf8ToBytes('aes-gcm'), 32);
     this.aes = await crypto.subtle.importKey('raw', raw as BufferSource, 'AES-GCM', false, ['encrypt', 'decrypt']);
     if (gen !== this.gen) return;
-    this.conns = [...new Set(relays)].map((url) => ({ url, state: 'connecting', eose: false, seen: new Map(), sent: new Map(), queue: [], retry: 0 }));
-    this.publish({ on: true, initial: false });
+    this.conns = [...new Set(relays)].map((url) => ({ url, state: 'connecting', eose: false, seen: new Map(), sent: new Map(), queue: [], retry: 0, pausedUntil: 0, strikes: 0 }));
+    this.publish({ on: true, initial: false, received: 0 });
     this.conns.forEach((c) => this.open(c));
   }
 
   stop() {
     this.gen++;
-    for (const c of this.conns) { clearTimeout(c.timer); clearTimeout(c.pump); c.ws && (c.ws.onclose = null); try { c.ws?.close(); } catch { /* already closed */ } }
+    for (const c of this.conns) { clearTimeout(c.timer); clearTimeout(c.pump); clearTimeout(c.pauseTimer); c.ws && (c.ws.onclose = null); try { c.ws?.close(); } catch { /* already closed */ } }
     this.conns = []; this.dirty.clear(); this.seenEvents.clear(); this.lastCreated.clear();
     clearTimeout(this.flushTimer);
-    this.publish({ on: false, initial: false });
+    this.publish({ on: false, initial: false, received: 0 });
   }
 
   private open(c: Conn) {
@@ -129,10 +135,23 @@ class SyncEngine {
       else if (msg[0] === 'EOSE') this.chain = this.chain.then(() => this.onEose(c));
       else if (msg[0] === 'OK' && msg[2] === false) {
         const b = c.sent.get(String(msg[1]));
-        c.error = String(msg[3] || 'rejected');
-        if (b) { c.seen.delete(b); this.dirty.add(b); this.scheduleFlush(8000); }
+        c.sent.delete(String(msg[1]));
+        const why = String(msg[3] || 'rejected');
+        c.error = why;
+        if (b) c.seen.delete(b);
+        if (/^(rate-limited|banned|blocked)/i.test(why)) {
+          // The server is throttling us: stop sending to it for a while instead of hammering it
+          // (retrying quickly is what turns a rate limit into a ban). Other servers carry on.
+          if (c.pausedUntil <= Date.now()) c.strikes++;
+          const wait = /^banned/i.test(why) ? 15 * 60000 : Math.min(15 * 60000, 30000 * 2 ** Math.min(c.strikes - 1, 5));
+          c.pausedUntil = Math.max(c.pausedUntil, Date.now() + wait);
+          for (const m of c.queue) { const id = JSON.parse(m)[1].id; const qb = c.sent.get(id); if (qb) { c.seen.delete(qb); this.dirty.add(qb); } c.sent.delete(id); }
+          c.queue = []; clearTimeout(c.pump); c.pump = undefined;
+          if (b) this.dirty.add(b);
+          clearTimeout(c.pauseTimer); c.pauseTimer = setTimeout(() => { this.allDirty(); this.scheduleFlush(0); this.publish(); }, c.pausedUntil - Date.now() + 500);
+        } else if (b) { this.dirty.add(b); this.scheduleFlush(8000); }
         this.publish();
-      } else if (msg[0] === 'OK') { c.sent.delete(String(msg[1])); this.publish({ lastSync: Date.now() }); }
+      } else if (msg[0] === 'OK') { c.sent.delete(String(msg[1])); if (c.pausedUntil <= Date.now()) { c.error = undefined; c.strikes = 0; } this.publish({ lastSync: Date.now() }); }
       else if (msg[0] === 'NOTICE') console.info('relay notice', c.url, msg[1]);
     };
     ws.onclose = () => {
@@ -155,16 +174,18 @@ class SyncEngine {
       this.seenEvents.set(ev.id, known);
       this.lastCreated.set(body.b, Math.max(this.lastCreated.get(body.b) ?? 0, ev.created_at));
       mergeRemote(body.r);
-      this.publish({ lastSync: Date.now() });
+      this.publish({ lastSync: Date.now(), received: this.status.received + 1 });
     }
     c.seen.set(known.b, known.dg);
     // If we hold anything the sender didn't, send our merged copy back out.
     if (digest(bucketRecords(known.b)) !== known.dg) { this.dirty.add(known.b); this.scheduleFlush(c.eose ? 300 : 1500); }
   }
 
+  private allDirty() { allBuckets().forEach((b) => this.dirty.add(b)); }
+
   private onEose(c: Conn) {
     c.eose = true;
-    allBuckets().forEach((b) => this.dirty.add(b));
+    this.allDirty();
     this.scheduleFlush(50);
     this.publish({ initial: true });
   }
@@ -180,9 +201,11 @@ class SyncEngine {
     for (const b of buckets) {
       const recs = bucketRecords(b);
       const dg = digest(recs);
-      const targets = this.conns.filter((c) => c.state === 'open' && c.eose && c.seen.get(b) !== dg);
+      const now = Date.now();
+      const ready = (c: Conn) => c.state === 'open' && c.eose && c.pausedUntil <= now;
+      const targets = this.conns.filter((c) => ready(c) && c.seen.get(b) !== dg);
       if (!targets.length) {
-        if (this.conns.some((c) => !(c.state === 'open' && c.eose))) this.dirty.add(b); // retry once reconnected
+        if (this.conns.some((c) => !ready(c))) this.dirty.add(b); // retry once reconnected / unpaused
         continue;
       }
       const ev = await this.buildEvent(b, recs);
@@ -190,6 +213,7 @@ class SyncEngine {
       const wire = JSON.stringify(['EVENT', ev]);
       for (const c of targets) { c.seen.set(b, dg); c.sent.set(ev.id, b); c.queue.push(wire); this.pump(c); }
     }
+    this.publish();
   }
 
   // Space out publishes so a first upload of many months doesn't trip relay rate limits.
@@ -200,7 +224,7 @@ class SyncEngine {
       const m = c.queue.shift();
       if (!m) return;
       if (c.ws?.readyState === 1) c.ws.send(m);
-      if (c.queue.length) c.pump = setTimeout(next, 250);
+      if (c.queue.length) c.pump = setTimeout(next, 400);
     };
     c.pump = setTimeout(next, 0);
   }

@@ -41,8 +41,8 @@ async function download(name: string, text: string, type: string) {
 
 function SyncBadge({ onClick }: { onClick: () => void }) {
   const s = useSync();
-  const open = s.relays.filter((r) => r.state === 'open').length;
-  const [label, cls] = !s.on ? ['Sync off', 'off'] : open && s.initial ? ['Synced', 'live'] : open ? ['Syncing…', 'busy'] : ['Offline — will sync later', 'down'];
+  const open = s.relays.filter((r) => r.state === 'open' && !r.pausedUntil).length;
+  const [label, cls] = !s.on ? ['Sync off', 'off'] : open && s.initial && !s.pending ? ['Synced', 'live'] : open ? ['Syncing…', 'busy'] : ['Offline — will sync later', 'down'];
   return <button className={`sync-badge ${cls}`} onClick={onClick} title="Sync settings"><i />{label}</button>;
 }
 
@@ -314,7 +314,12 @@ function SyncCard({ prefs, setPrefs }: { prefs: LocalPrefs; setPrefs: (p: LocalP
     setPrefs({ ...prefs, relays: list.length ? list : DEFAULT_RELAYS });
     setRelayText((list.length ? list : DEFAULT_RELAYS).join('\n'));
   };
-  const open = s.relays.filter((r) => r.state === 'open').length;
+  const open = s.relays.filter((r) => r.state === 'open' && !r.pausedUntil).length;
+  const paused = s.relays.filter((r) => r.state === 'open' && r.pausedUntil);
+  const resume = paused.length ? new Date(Math.min(...paused.map((r) => r.pausedUntil!))).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : '';
+  const headline = !open ? 'Can’t reach a sync server right now' : !s.initial ? 'Connecting and catching up…' : s.pending ? `Sending your data… ${s.pending} ${s.pending === 1 ? 'part' : 'parts'} left` : 'Sync is on and up to date';
+  const detail = !open ? (paused.length ? `The servers are busy — retrying at ${resume}. Changes are saved here meanwhile.` : 'Changes are saved here and will sync when you’re back online.')
+    : `${open} of ${s.relays.length} servers connected${paused.length ? ` · ${paused.length} busy, retrying at ${resume}` : ''}${s.lastSync ? ` · last change ${new Date(s.lastSync).toLocaleTimeString()}` : ''}`;
   return (
     <Card title="Sync across devices" sub={prefs.code ? undefined : 'Keep your phone and computers up to date with each other, instantly and end-to-end encrypted. No account needed.'}>
       {prefs.code ? (
@@ -322,10 +327,17 @@ function SyncCard({ prefs, setPrefs }: { prefs: LocalPrefs; setPrefs: (p: LocalP
           <div className={`sync-state ${open ? 'live' : 'down'}`}>
             <Icon name={open ? 'check' : 'warn'} size={18} />
             <div>
-              <b>{open ? (s.initial ? 'Sync is on and up to date' : 'Connecting and catching up…') : 'Can’t reach a sync server right now'}</b>
-              <small>{open ? `${open} of ${s.relays.length} servers connected${s.lastSync ? ` · last change ${new Date(s.lastSync).toLocaleTimeString()}` : ''}` : 'Changes are saved here and will sync when you’re back online.'}</small>
+              <b>{headline}</b>
+              <small>{detail}</small>
             </div>
           </div>
+          {open > 0 && s.initial && !s.received && !s.pending && (
+            <div className="sync-alone">
+              <b>Nothing has come in from another device yet</b>
+              <p>Your code starts with <code>{prefs.code.slice(0, 4)}</code>. Check that your other device shows the same code (Settings → Sync → Show sync code) and has Ledgerleaf open with sync on.</p>
+              <p>If the codes differ, “Turn on sync” was pressed on both. Here, tap “Stop syncing this device”, then use <b>Join</b> with the code from the device that has your data. Nothing on this device is lost.</p>
+            </div>
+          )}
           <p className="hint">To add a device, install Ledgerleaf on it, open Settings → Sync and enter this code. Anyone with the code can read your budget, so share it only with your own devices.</p>
           {show ? (
             <div className="code-box">
@@ -358,7 +370,7 @@ function SyncCard({ prefs, setPrefs }: { prefs: LocalPrefs; setPrefs: (p: LocalP
       )}
       {adv && (
         <div className="relays">
-          {s.relays.map((r) => <div key={r.url} className="relay"><i className={r.state} />{r.url}<small>{r.state === 'open' ? 'connected' : r.state}{r.error ? ` · ${r.error}` : ''}</small></div>)}
+          {s.relays.map((r) => <div key={r.url} className="relay"><i className={r.pausedUntil ? 'busy' : r.state} />{r.url}<small>{r.pausedUntil ? `busy, retrying at ${new Date(r.pausedUntil).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}` : r.state === 'open' ? 'connected' : r.state}{r.error ? ` · ${r.error}` : ''}</small></div>)}
           <Field label="Sync servers (one per line)" hint="Encrypted copies are relayed through these servers. Use the same list on every device. You can run your own with the included server/relay.mjs.">
             <textarea rows={3} value={relayText} onChange={(e) => setRelayText(e.target.value)} spellCheck={false} />
           </Field>
