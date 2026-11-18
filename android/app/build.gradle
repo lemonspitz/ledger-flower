@@ -7,13 +7,26 @@ android {
         applicationId "app.ledgerleaf.budget"
         minSdkVersion rootProject.ext.minSdkVersion
         targetSdkVersion rootProject.ext.targetSdkVersion
-        versionCode 22
-        versionName "1.14.0"
+        versionCode 23
+        versionName "1.14.1"
         testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
         aaptOptions {
              // Files and dirs to omit from the packaged assets dir, modified to accommodate modern web apps.
              // Default: https://android.googlesource.com/platform/frameworks/base/+/282e181b58cf72b6ca770dc7ca5f91f135444502/tools/aapt/AaptAssets.cpp#61
             ignoreAssetsPattern = '!.svn:!.git:!.ds_store:!*.scc:.*:!CVS:!thumbs.db:!picasa.ini:!*~'
+        }
+    }
+    // The app is signed with one fixed key so every new APK installs as an update over the last.
+    // Release builds on GitHub pass its path in LF_KEYSTORE; local builds use ~/.android/debug.keystore.
+    signingConfigs {
+        debug {
+            def ks = System.getenv("LF_KEYSTORE")
+            if (ks) {
+                storeFile file(ks)
+                storePassword "android"
+                keyAlias "androiddebugkey"
+                keyPassword "android"
+            }
         }
     }
     buildTypes {

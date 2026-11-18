@@ -23,6 +23,10 @@ on:
 permissions:
   contents: write
 
+env:
+  # Fingerprint of the app's signing certificate (public; used to check every APK before release).
+  APP_SIGNER_SHA256: ed4e957c0d6ac3e74909cfd8d9c6fe718a4bafa52b58946faa7e301c96d52f57
+
 concurrency:
   group: release-${{ github.event.inputs.tag || github.ref_name }}
   cancel-in-progress: true
@@ -84,7 +88,8 @@ jobs:
             echo "::warning::ANDROID_KEYSTORE_B64 is not set, so the APK is skipped (it could not update the installed app)."
             echo "ok=false" >> "$GITHUB_OUTPUT"; exit 0
           fi
-          mkdir -p ~/.android && echo "$KEYSTORE" | base64 -d > ~/.android/debug.keystore
+          echo "$KEYSTORE" | tr -d ' \r\n' | base64 -d > "$RUNNER_TEMP/ledger-flower.keystore"
+          echo "LF_KEYSTORE=$RUNNER_TEMP/ledger-flower.keystore" >> "$GITHUB_ENV"
           echo "ok=true" >> "$GITHUB_OUTPUT"
       - if: steps.key.outputs.ok == 'true'
         uses: actions/setup-node@v4
@@ -102,6 +107,10 @@ jobs:
           npm run build
           npx cap sync android
           cd android && ./gradlew assembleDebug --no-daemon
+          # Refuse to publish an APK signed with any other key: it could not update the installed app.
+          SIGNER=$("$ANDROID_HOME"/build-tools/$(ls "$ANDROID_HOME"/build-tools | sort -V | tail -1)/apksigner verify --print-certs app/build/outputs/apk/debug/app-debug.apk | grep -m1 'SHA-256 digest' | awk '{print $NF}')
+          echo "APK signed with $SIGNER"
+          [ "$SIGNER" = "$APP_SIGNER_SHA256" ] || { echo "::error::APK is signed with $SIGNER, expected $APP_SIGNER_SHA256. Check the ANDROID_KEYSTORE_B64 secret."; exit 1; }
           mkdir -p ../out && cp app/build/outputs/apk/debug/app-debug.apk "../out/Ledger-Flower-${{ needs.check.outputs.version }}-android.apk"
       - if: steps.key.outputs.ok == 'true'
         uses: actions/upload-artifact@v4
