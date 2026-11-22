@@ -26,12 +26,16 @@ export function detectPayment(text: string): PaidWith | undefined {
 const CUR = String.raw`(?:[$€£¥₹₩₱฿₫]|rp\.?|idr|rm|usd|eur|sgd|php|thb|vnd|jpy|krw|inr)`;
 const NUMBER = String.raw`\d{1,3}(?:[.,'’]\d{3})+(?:[.,]\d{1,2})?|\d+(?:[.,]\d{1,2})?`;
 const LINE_PRICE = new RegExp(String.raw`^(.*?)[\s:.*@=-]*(?:(${CUR})\s?)?(-|−)?\s?(${NUMBER})\s*(?:${CUR}|[A-Za-z*#]{1,3})?\s*$`, 'i');
-const TOTAL = /\b(grand\s*total|total|amount\s*due|balance\s*due|to\s*pay|jumlah|tagihan|totale|totaal|gesamt|summe|betrag|importe|montant)\b|合計|合计/i;
-const NOT_TOTAL = /\bqty\b|\bprice\b|\bharga\b|sub\s*-?\s*total|total\s*(tax|vat|savings?|items?|discount|qty|disc|hemat|item)|tax\s*total|points/i;
-const PAID = /\b(cash|change|tender|tunai|kembali(an)?|bar|r[uü]ckgeld|efectivo|cambio|esp[eè]ces|rendu|contanti|resto|kontant|card|visa|master\s?card|amex|debit|kartu|qris|ovo|gopay|dana)\b/i;
-const SERVICE = /\b(service|svc|serv\.?\s?ch(?:ar)?ge?|s\.?\s?charge|layanan|biaya\s+layanan|gratuity|tip|sc)\b/i;
-const TAX = /\b(tax|pb\s?1|ppn|pajak|vat|gst|mwst|iva|tva)\b/i;
-const SKIP_ITEM = /\bservice\b|\bsvc\b|layanan|sub\s*-?\s*total|\btotal\b|\btax\b|\bvat\b|\bgst\b|\bppn\b|\bpb\s?1\b|\bpajak\b|\bmwst\b|\biva\b|\btva\b|\bchange\b|balance|tender|payment|\btip\b|gratuity|discount|diskon|coupon|savings|hemat|rounding|pembulatan|loyalty|points/i;
+const TOTAL = /^\W*due\b|^\W*(tl|gt)\s+(rp\.?\s*)?[\d.,]+\s*$|\b(grand\s*total|total|amount\s*due|balance\s*due|to\s*pay|jumlah|tagihan|totale|totaal|gesamt|summe|betrag|importe|montant)\b|合計|合计/i;
+const NOT_TOTAL = /\bqty\b|su[bd][\s.-]*t\s*o?\s*t\s*a?\s*l\b|\bprice\b|\bharga\b|sub\s*-?\s*total|total\s*(tax|vat|savings?|items?|discount|qty|disc|hemat|item|menu)|items?\s*total|\bdpp\b|tax\s*total|points/i;
+const PAID = /^\W*bar\b|\b(cash|change|tender|tunai|kembali(an)?|r[uü]ckgeld|efectivo|cambio|esp[eè]ces|rendu|contanti|resto|kontant|card|visa|master\s?card|amex|debit|kartu|qris|ovo|gopay|dana)\b/i;
+const SERVICE = /\b(services?|servi|ser(?=\s+\d{1,2}\s?%)|svc|serv\.?\s?ch(?:ar)?ge?|s\.?\s?charge|layanan|biaya\s+layanan|gratuity|tip|sc(?=\s*[:\d(%]))\b/i;
+const TAX = /\b(tax|pb\s?-?\s?1|ppn|pajak|pjk|phr|[pf]\.?\s?resto?(ran)?|vat|gst|mwst|iva|tva)\b/i;
+/** The subtotal line: "Subtotal", "SUB-TOTAL", "SUBTTL", "Net sales", and "ITEMS: 2  128,181" (item count and their sum). */
+const SUBTOTAL = /\btotal\s*(\d+\s*)?items?\s*:?\s*\d*\s+\S*\d[.,]\d{3}|su[bd][\s.-]*t\s*o?\s*t\s*a?\s*l\b|\bnet\s*(sales|total)\b|\bitems?\s*total\b|\bdpp\b|dasar\s+pengenaan|^\W*items?\s*:\s*\d+\s+\S*\d/i;
+/** Lines after the menu that sum part of it: the tax base (DPP), totals per menu section, "Before rounding". */
+const SUMMARY = /before\s*round|^\W*(foods?|beverages?|drinks?|others?|makanan|minuman|lain-?\s?lain|dessert)\s*:?\s+(rp\.?\s*)?[\d.,]+\s*$/i;
+const SKIP_ITEM = /\bservices?\b|\bservi\b|\bsvc\b|layanan|sub\s*-?\s*total|\btotal\b|\btax\b|\bvat\b|\bgst\b|\bppn\b|\bpb\s?1\b|\bpajak\b|\bphr\b|\bp\.?\s?resto?\b|\bmwst\b|\biva\b|\btva\b|\bchange\b|balance|tender|payment|\btip\b|gratuity|discount|diskon|coupon|savings|hemat|rounding|pembulatan|loyalty|points/i;
 
 /** Value of a printed number in hundredths. "17.500" is seventeen thousand five hundred; "17.50" is seventeen and a half. */
 function toMinor(raw: string) {
@@ -132,7 +136,7 @@ export function guessSub(name: string, cat?: Category) {
 // dates and times, loyalty points, column headings, greetings.
 const NOISE = new RegExp([
   String.raw`\b(order|pesanan)\s*(no|#|:|\d|type)`, String.raw`\b(invoice|inv|receipt|struk|nota|bill\s*no|no\.?\s*(order|struk|nota|bill|trx|transaksi|meja|antrian))\b`,
-  String.raw`\btable\s*(no|#|:|\d)`, String.raw`\b(meja|pax|guests?|tamu|covers?|info|purpose|customer|pelanggan)\b`, String.raw`\btime\s*in\b`, String.raw`^\W*\d+\s+items?\b`,
+  String.raw`\btable\s*(no|#|:|\d)`, String.raw`\b(liter|litre|jenis\s*bbm)\b`, String.raw`\b(meja|pax|guests?|tamu|covers?|info|purpose|customer|pelanggan)\b`, String.raw`\btime\s*in\b`, String.raw`^\W*\d+\s+items?\b`,
   String.raw`\b(cashier|kasir|server|waiter|waitress|pelayan|operator|staff)\b`,
   String.raw`\b(telp?|phone|hp|wa|whatsapp|fax|npwp|nib|wifi|password|email)\b`,
   String.raw`\b(poin|points?|kode|code|queue|antrian|ref|trx|transaksi|terminal|tid|mid|approval|appr|auth|batch|trace)\b`,
@@ -168,7 +172,7 @@ function tail(line: string, decimalMode: boolean) {
     const m = w.match(NUM_TOK);
     if (!m) break;
     const raw = m[5];
-    const grouped = /^\d{1,3}(?:[.,'’]\d{3})+/.test(raw), decimals = /[.,]\d{2}$/.test(raw) && !/[.,]\d{3}$/.test(raw);
+    const grouped = /^\d{1,3}(?:[.,'’]\d{3})+/.test(raw), decimals = (/[.,]\d{2}$/.test(raw) || (grouped && /[.,]\d$/.test(raw))) && !/[.,]\d{3}$/.test(raw);
     const plain = /^\d+$/.test(raw);
     const cur = !!(m[2] || m[4] || m[6]);
     const money = decimalMode ? decimals : grouped || cur || (plain && !raw.startsWith('0') && raw.length >= 3 && raw.length <= 7);
@@ -193,8 +197,8 @@ function readLine(line: string, decimalMode: boolean): Line | null {
   let name = label.replace(/[\s:.=-]+$/, '');
   const lead = name.match(/^(\d{1,2})\s*[xX×]?\s+(?=\D)|^(\d{1,2})[xX×](?=\D)/);
   if (lead && !qty) { qty = Number(lead[1] ?? lead[2]); name = name.slice(lead[0].length); }
-  const trail = name.match(/\s+[xX×](\d{1,2})$|\s+(\d{1,2})[xX×]$/);
-  if (trail && !qty) { qty = Number(trail[1] ?? trail[2]); name = name.slice(0, -trail[0].length); }
+  const trail = name.match(/\s+[xX×](\d{1,2})$|\s+(\d{1,2})[xX×]$|\s+(\d{1,2})[.,]00\.?$/);
+  if (trail && (!qty || trail[3])) { qty = qty || Number(trail[1] ?? trail[2] ?? trail[3]); name = name.slice(0, -trail[0].length); }
   const last = money[money.length - 1];
   const totalTok = money.length >= 2 || !last.each ? last : undefined;
   const unitTok = money.length >= 2 ? money[money.length - 2] : last.each ? last : undefined;
@@ -262,7 +266,8 @@ export function parseReceipt(text: string, cats: Category[]): Receipt {
   // Receipts either print cents everywhere (3.49) or not at all (Rp 17.500, ¥598). Work out which,
   // so stray whole numbers (quantities, sizes, register numbers) aren't taken for prices.
   const prices = lines.map(linePrice);
-  const decimalMode = prices.filter((p) => p?.decimals).length >= 2;
+  const withCents = prices.filter((p) => p?.decimals).length;
+  const decimalMode = withCents >= 2 && withCents >= lines.filter((l, i) => !prices[i]?.decimals && /\d[.,']\d{3}(?![.,]?\d)/.test(l)).length;
   const usable = (p: Price | null): p is Price => !!p && p.value !== 0 && (decimalMode ? p.decimals : p.value >= 100 || p.currency);
   const priceAt = (i: number) => (usable(prices[i]) ? prices[i] : null);
   const hasWords = (s: string) => (s.match(/[A-Za-zÀ-ÿ]/g) ?? []).length >= 2;
@@ -270,17 +275,28 @@ export function parseReceipt(text: string, cats: Category[]): Receipt {
   const hasName = (s: string) => /[A-Za-zÀ-ÿ]{3,}/.test(s);
 
   let totalIdx = lines.length;
-  const totalLines = lines.map((l, i) => i).filter((i) => TOTAL.test(lines[i]) && !NOT_TOTAL.test(lines[i]));
+  let totalLines = lines.map((l, i) => i).filter((i) => TOTAL.test(lines[i]) && !NOT_TOTAL.test(lines[i]));
+  let subIdx = lines.findIndex((l) => SUBTOTAL.test(l));
+  // "TOTAL 76,181 / TAX 7,618 / GRAND TOTAL 83,799": the first total is before tax, so it is the subtotal.
+  const grandAt = totalLines.find((i) => /grand\s*total/i.test(lines[i]));
+  if (subIdx < 0 && grandAt !== undefined && totalLines[0] < grandAt && lines.slice(totalLines[0] + 1, grandAt).some((l) => TAX.test(l) || SERVICE.test(l))) {
+    subIdx = totalLines[0]; totalLines = totalLines.slice(1);
+  }
   if (totalLines.length) totalIdx = totalLines[0];
-  const subIdx = lines.findIndex((l) => /sub\s*-?\s*total/i.test(l));
-  const end = subIdx >= 0 ? Math.min(subIdx, totalIdx) : totalIdx;
+  const sumIdx = lines.findIndex((l) => SUMMARY.test(l));
+  const end = Math.min(totalIdx, ...[subIdx, sumIdx].filter((i) => i >= 0));
 
-  const isOther = (l: string) => NOISE.test(l) || TOTAL.test(l) || SERVICE.test(l) || TAX.test(l) || PAID.test(l) || SKIP_ITEM.test(l) || DISCOUNT.test(l);
+  const isOther = (l: string) => (NOISE.test(l) && !/take\s*away\s*charge/i.test(l)) || SUBTOTAL.test(l) || SUMMARY.test(l) || TOTAL.test(l) || SERVICE.test(l) || TAX.test(l) || PAID.test(l) || SKIP_ITEM.test(l) || DISCOUNT.test(l);
   // Menu lines start after the header block (date, table, cashier…), when there is one.
   let begin = 0;
-  for (let i = 0; i < end; i++) if (NOISE.test(lines[i]) && i < end * 0.7) begin = i + 1;
+  // A line with a real price (grouped, with cents or a currency) is a menu line: noise after it ("TAKE AWAY",
+  // "Total Item: 1") is part of the bill, not the header.
+  const strong = (i: number) => { const p = prices[i]; return !!p && p.value > 0 && (p.decimals || /\d[.,']\d{3}/.test(lines[i])) && hasName(p.label); };
+  for (let i = 0; i < end; i++) { if (strong(i) && !NOISE.test(lines[i])) break; if (NOISE.test(lines[i]) && i < end * 0.7) begin = i + 1; }
   const items: (ReceiptItem & { alts: number[] })[] = [];
   let pending: string | null = null, lastAt = -2;
+  // Some printers put the numbers first and the dish name under them ("1x 22.000  22.000" / "Ice Green Tea").
+  let orphan: Line | null = null, orphanMode = false;
   for (let i = begin; i < end; i++) {
     const l = lines[i];
     if (isOther(l)) { pending = null; continue; }
@@ -288,6 +304,7 @@ export function parseReceipt(text: string, cats: Category[]): Receipt {
     if (r && !hasName(r.label)) {
       // A numbers-only line belongs to the dish named just above it.
       if (pending) { items.push({ name: pending, amount: r.total, qty: r.qty, unit: r.unit, alts: r.alts }); pending = null; lastAt = i; }
+      else if (!items.length || orphanMode) { orphan = r; orphanMode = true; }
       else if (lastAt === i - 1 && items.length) {
         const it = items[items.length - 1];
         it.qty = r.qty;
@@ -298,9 +315,15 @@ export function parseReceipt(text: string, cats: Category[]): Receipt {
       continue;
     }
     if (r && r.total > 0 && !r.neg) { const name = cleanName(r.label); if (hasName(name)) { items.push({ name, amount: r.total, qty: r.qty, unit: r.unit, alts: r.alts }); lastAt = i; pending = null; continue; } }
-    if (!r && hasName(l)) { const name = cleanName(l); pending = hasName(name) ? name : null; }
+    if (!r && hasName(l)) {
+      const name = cleanName(l);
+      if (orphan && hasName(name)) { if (orphan.total > 0) items.push({ name, amount: orphan.total, qty: orphan.qty, unit: orphan.unit, alts: orphan.alts }); orphan = null; pending = null; lastAt = i; continue; }
+      pending = hasName(name) ? name : null;
+    }
   }
-  const subLine = subIdx >= 0 ? (priceAt(subIdx)?.value ?? readLine(lines[subIdx], decimalMode)?.total ?? 0) : 0;
+  // The amount can be on the line under "Sub Total" when the photo is tilted or the column is narrow.
+  const amountOnly = (k: number) => (k < lines.length && priceAt(k) && !hasWords(priceAt(k)!.label) ? priceAt(k)!.value : 0);
+  const subLine = subIdx >= 0 ? (priceAt(subIdx)?.value ?? readLine(lines[subIdx], decimalMode)?.total ?? amountOnly(subIdx + 1)) : 0;
   reconcile(items, subLine);
   for (const it of items) it.name = it.name.slice(0, 60);
   const sum = items.reduce((a, i) => a + i.amount, 0);
@@ -308,16 +331,22 @@ export function parseReceipt(text: string, cats: Category[]): Receipt {
 
   // Service charge and tax lines, with the percentage when it is printed ("SERVICE 5%", "PB1 10%").
   const charges = { service: 0, tax: 0, discount: 0, servicePct: undefined as number | undefined, taxPct: undefined as number | undefined };
+  const seenDisc = new Set<number>();
   for (let i = 0; i < lines.length; i++) {
     // A minus amount is a discount even when OCR mangles the word ("piskon").
     if (TOTAL.test(lines[i]) || PAID.test(lines[i]) || SERVICE.test(lines[i]) || TAX.test(lines[i])) continue;
     const r = readLine(lines[i], decimalMode);
-    if (r && (r.neg || DISCOUNT.test(lines[i]))) charges.discount += r.total;
+    // The same discount is often printed twice: under the dish and again above the total.
+    if (r && (r.neg || DISCOUNT.test(lines[i])) && !seenDisc.has(r.total)) { charges.discount += r.total; seenDisc.add(r.total); }
   }
+  // A subtotal printed after the discount already has it taken off.
+  if (subLine && charges.discount && sum - charges.discount === subLine) charges.discount = 0;
   for (let i = 0; i < lines.length; i++) {
     const l = lines[i], p = priceAt(i);
-    const svc = SERVICE.test(l), tx = !svc && TAX.test(l) && !/incl|termasuk|inkl/i.test(l);
+    const svc = SERVICE.test(l), tx = !svc && TAX.test(l) && !/incl|termasuk|inkl/i.test(l) && !SUBTOTAL.test(l);
     if (!svc && !tx) continue;
+    // "PB1 (10%)" with its amount on the line below.
+    if (!p) { const v = amountOnly(i + 1); if (v && v < subtotal) { if (svc) charges.service += v; else charges.tax += v; } }
     const pct = l.match(/(?:^|[^\d.,])(\d{1,2}(?:[.,]\d{1,3})?)\s?%/)?.[1];
     if (svc) { if (p && p.value > 0) charges.service += p.value; if (pct) charges.servicePct = Number(pct.replace(',', '.')); }
     else { if (p && p.value > 0) charges.tax += p.value; if (pct) charges.taxPct = Number(pct.replace(',', '.')); }
@@ -333,20 +362,23 @@ export function parseReceipt(text: string, cats: Category[]): Receipt {
   }
 
 
+  // No readable grand total (or one smaller than the subtotal): work it out from the parts.
+  const expected = subtotal - charges.discount + charges.service + charges.tax;
+  const fits = (v: number) => Math.abs(v - expected) <= 100;
   let total = 0;
   const grand = totalLines.find((i) => /grand\s*total|amount\s*due|balance\s*due|to\s*pay/i.test(lines[i])) ?? totalLines[totalLines.length - 1];
   for (const i of grand !== undefined ? [grand, ...totalLines.filter((x) => x !== grand)] : []) {
     const own = priceAt(i);
     if (own && own.value > 0) { total = own.value; break; }
     // A tilted photo can put the amount on a line of its own next to "TOTAL".
-    const near = [i - 2, i - 1, i + 1, i + 2].filter((k) => k >= 0 && k < lines.length && !hasWords(priceAt(k)?.label ?? 'xx') && !PAID.test(lines[k]))
-      .map((k) => priceAt(k)!).filter((p) => p.value > 0);
-    const pick = near.find((p) => p.currency) ?? near.filter((p) => p.value >= sum).sort((a, b) => a.value - b.value)[0];
+    const around = [i - 2, i - 1, i + 1, i + 2].filter((k) => k >= 0 && k < lines.length && priceAt(k));
+    const near = around.filter((k) => !hasWords(priceAt(k)!.label) && !PAID.test(lines[k])).map((k) => priceAt(k)!).filter((p) => p.value > 0);
+    // "GRAND TOTAL" with the amount on the payment line under it ("~ CASH [105,999]  105,999"): only when it adds up.
+    const paidFit = around.filter((k) => k > i).map((k) => priceAt(k)!).find((p) => p.value > 0 && fits(p.value));
+    const pick = near.find((p) => p.currency) ?? near.filter((p) => p.value >= sum).sort((a, b) => a.value - b.value)[0] ?? paidFit;
     if (pick) { total = pick.value; break; }
   }
-  // No readable grand total (or one smaller than the subtotal): work it out from the parts.
-  const expected = subtotal - charges.discount + charges.service + charges.tax;
-  const totalPrinted = !!total && total >= subtotal;
+  const totalPrinted = !!total && (total >= subtotal || fits(total) || (charges.discount > 0 && total >= subtotal - charges.discount));
   if (!totalPrinted && subtotal) total = expected;
   if (!total) total = sum || Math.max(0, ...prices.filter((p, i): p is Price => usable(p) && !PAID.test(lines[i])).map((p) => p.value));
 

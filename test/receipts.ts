@@ -250,4 +250,88 @@ Service Charge :       10.700
 |       rd: wm #2`,
     expect: { items: [['Bakso Kuah', 1, 3500000], ['Cincau Sedjuk', 1, 5400000], ['Bakmi Ayam Oven Komplit', 1, 5500000], ['Kopi Sedjuk', 1, 2900000], ['Nasi Putih', 1, 800000], ['Hot Lovely Ale', 1, 3300000]], subtotal: 21400000, total: 24717000, service: 1070000, tax: 2247000 },
   },
+  // ── Layouts found in the CORD benchmark (1,000 Indonesian receipts; see bench/cord.ts) ──
+  {
+    name: 'CORD: "ITEMS: 2" count-and-sum line is the subtotal, not a dish; free add-on line',
+    text: `Pepper Steak   1   122,727
+Milo   1   0
+- Cheese   1   5,454
+ITEMS: 2   128,181
+Tax 10.00%   12,818
+Total   140,999
+Cash   150,000
+Change   9,001`,
+    expect: { items: [['Pepper Steak', 1, 12272700], ['Cheese', 1, 545400]], subtotal: 12818100, total: 14099900, tax: 1281800 },
+  },
+  {
+    name: 'CORD: totals per menu section (FOOD / BEVERAGES / OTHERS) are not dishes; "DUE" is the total',
+    text: `1 UDANG REBUS (M)   162,000
+1 HOT TEA   12,000
+2 NASI PUTIH 10,000 20,000
+FOOD   162,000
+BEVERAGES   12,000
+OTHERS   20,000
+SUBTOTAL   194,000
+SERVICE CHARGE   11,640
+Tax 10%   20,564
+DUE   226,204`,
+    expect: { items: [['Udang Rebus (m)', 1, 16200000], ['Hot Tea', 1, 1200000], ['Nasi Putih', 2, 1000000]], subtotal: 19400000, total: 22620400, service: 1164000, tax: 2056400 },
+  },
+  {
+    name: 'CORD: "SUB. TOTAL", restaurant tax, GRAND TOTAL with its amount on the payment line below',
+    text: `KAKE UDON   1   30,909
+COLD OCHA   1   10,909
+SUB. TOTAL   41,818
+RESTAURANT TAX   4,182
+GRAND TOTAL
+~ CASH [46,000]   46,000
+Change: 0`,
+    expect: { items: [['Kake Udon', 1, 3090900], ['Cold Ocha', 1, 1090900]], subtotal: 4181800, total: 4600000, tax: 418200 },
+  },
+  {
+    name: 'CORD: TOTAL before tax is the subtotal when a GRAND TOTAL follows',
+    text: `BIHUN CAMPUR   1 43,181   43,181
+JERUK MURNI   1 20,000   20,000
+TOTAL   63,181
+TAX 10.00 %   6,318
+GRAND TOTAL   69,499
+TUNAI   100,000
+KEMBALI   30,501`,
+    expect: { items: [['Bihun Campur', 1, 4318100], ['Jeruk Murni', 1, 2000000]], subtotal: 6318100, total: 6949900, tax: 631800 },
+  },
+  {
+    name: 'CORD: discount printed twice (under the dish and above the total) is taken off once',
+    text: `1   Choco Cheese   13,636
+Exclusive Member Card   -2,045
+SubTotal:   13,636
+Discount:   -2,045
+PB1:   1,159
+Total:   12,750
+cash:   12,750`,
+    expect: { items: [['Choco Cheese', 1, 1363600]], subtotal: 1363600, total: 1275000, discount: 204500, tax: 115900 },
+  },
+  {
+    name: 'CORD: numbers first, dish name on the line below; "Services" and "P.Rest" labels',
+    text: `1x 22.000   22.000
+Ice Green Tea
+2x 18.000   36.000
+Kimchi Fried Rice
+SUBTOTAL   58.000
+Services   2.900
+P.Rest 10 %   6.090
+***TOTAL   66.990
+CASH   Rp 70.000`,
+    expect: { items: [['Ice Green Tea', 1, 2200000], ['Kimchi Fried Rice', 2, 1800000]], subtotal: 5800000, total: 6699000, service: 290000, tax: 609000 },
+  },
+  {
+    name: 'CORD: a "TAKE AWAY" charge line after the dishes doesn\'t hide them; amounts with one decimal',
+    text: `1 medium tub   49,000.0 49,000.0
+1 TAKE AWAY CHARGE   1,000.0 1,000.0
+Subtotal: 45,454.55
+Tax 10.00%: 4,545.45
+TOTAL:   50,000.00
+Paid:   50,000.00
+Change:   0.00`,
+    expect: { items: [['medium tub', 1, 4900000], ['Take Away Charge', 1, 100000]], subtotal: 4545455, total: 5000000, tax: 454545 },
+  },
 ];
