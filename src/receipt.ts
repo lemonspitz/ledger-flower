@@ -23,19 +23,19 @@ export function detectPayment(text: string): PaidWith | undefined {
 }
 
 // Prices come in many shapes: 3.49 · $3.49 · 1,60 € · 1.234,56 · Rp 17.500 · ¥1,239 · 98.000
-const CUR = String.raw`(?:[$€£¥₹₩₱฿₫]|rp\.?|idr|rm|usd|eur|sgd|php|thb|vnd|jpy|krw|inr)`;
+const CUR = String.raw`(?:nt\$|hk\$|r\$|[$€£¥₹₩₱฿₫₺₽円元원đ]|rp\.?|idr|rm|usd|eur|sgd|php|thb|vnd|jpy|krw|inr|aed|sar|ksh|tsh|chf|nok|sek|dkk|kr\.?|руб\.?|tl|บาท|ر\.س|د\.إ)`;
 const NUMBER = String.raw`\d{1,3}(?:[.,'’]\d{3})+(?:[.,]\d{1,2})?|\d+(?:[.,]\d{1,2})?`;
 const LINE_PRICE = new RegExp(String.raw`^(.*?)[\s:.*@=-]*(?:(${CUR})\s?)?(-|−)?\s?(${NUMBER})\s*(?:${CUR}|[A-Za-z*#]{1,3})?\s*$`, 'i');
-const TOTAL = /^\W*due\b|^\W*(tl|gt)\s+(rp\.?\s*)?[\d.,]+\s*$|\b(grand\s*total|total|amount\s*due|balance\s*due|to\s*pay|jumlah|tagihan|totale|totaal|gesamt|summe|betrag|importe|montant)\b|合計|合计/i;
-const NOT_TOTAL = /\bqty\b|su[bd][\s.-]*t\s*o?\s*t\s*a?\s*l\b|\bprice\b|\bharga\b|sub\s*-?\s*total|total\s*(tax|vat|savings?|items?|discount|qty|disc|hemat|item|menu)|items?\s*total|\bdpp\b|tax\s*total|points/i;
-const PAID = /^\W*bar\b|\b(cash|change|tender|tunai|kembali(an)?|r[uü]ckgeld|efectivo|cambio|esp[eè]ces|rendu|contanti|resto|kontant|card|visa|master\s?card|amex|debit|kartu|qris|ovo|gopay|dana)\b/i;
-const SERVICE = /\b(services?|servi|ser(?=\s+\d{1,2}\s?%)|svc|serv\.?\s?ch(?:ar)?ge?|s\.?\s?charge|layanan|biaya\s+layanan|gratuity|tip|sc(?=\s*[:\d(%]))\b/i;
-const TAX = /\b(tax|pb\s?-?\s?1|ppn|pajak|pjk|phr|[pf]\.?\s?resto?(ran)?|vat|gst|mwst|iva|tva)\b/i;
+const TOTAL_L = /^\W*due\b|^\W*(tl|gt)\s+(rp\.?\s*)?[\d.,]+\s*$|\b(grand\s*total|total|amount\s*due|balance\s*due|to\s*pay|jumlah|tagihan|totale|totaal|gesamt|summe|betrag|importe|montant)\b|合計|合计/i;
+const NOT_TOTAL_L = /\bqty\b|su[bd][\s.-]*t\s*o?\s*t\s*a?\s*l\b|\bprice\b|\bharga\b|sub\s*-?\s*total|total\s*(tax|vat|savings?|items?|discount|qty|disc|hemat|item|menu)|items?\s*total|\bdpp\b|tax\s*total|points/i;
+const PAID_L = /^\W*bar\b|\b(cash|change|tender|tunai|kembali(an)?|r[uü]ckgeld|efectivo|cambio|esp[eè]ces|rendu|contanti|resto|kontant|card|visa|master\s?card|amex|debit|kartu|qris|ovo|gopay|dana)\b/i;
+const SERVICE_L = /\b(services?|servi|ser(?=\s+\d{1,2}\s?%)|svc|serv\.?\s?ch(?:ar)?ge?|s\.?\s?charge|layanan|biaya\s+layanan|gratuity|tip|sc(?=\s*[:\d(%]))\b/i;
+const TAX_L = /\b(tax|pb\s?-?\s?1|ppn|pajak|pjk|phr|[pf]\.?\s?resto?(ran)?|vat|gst|mwst|iva|tva)\b/i;
 /** The subtotal line: "Subtotal", "SUB-TOTAL", "SUBTTL", "Net sales", and "ITEMS: 2  128,181" (item count and their sum). */
-const SUBTOTAL = /\btotal\s*(\d+\s*)?items?\s*:?\s*\d*\s+\S*\d[.,]\d{3}|su[bd][\s.-]*t\s*o?\s*t\s*a?\s*l\b|\bnet\s*(sales|total)\b|\bitems?\s*total\b|\bdpp\b|dasar\s+pengenaan|^\W*items?\s*:\s*\d+\s+\S*\d/i;
+const SUBTOTAL_L = /\btotal\s*(\d+\s*)?items?\s*:?\s*\d*\s+\S*\d[.,]\d{3}|su[bd][\s.-]*t\s*o?\s*t\s*a?\s*l\b|\bnet\s*(sales|total)\b|\bitems?\s*total\b|\bdpp\b|dasar\s+pengenaan|^\W*items?\s*:\s*\d+\s+\S*\d/i;
 /** Lines after the menu that sum part of it: the tax base (DPP), totals per menu section, "Before rounding". */
-const SUMMARY = /before\s*round|^\W*(foods?|beverages?|drinks?|others?|makanan|minuman|lain-?\s?lain|dessert)\s*:?\s+(rp\.?\s*)?[\d.,]+\s*$/i;
-const SKIP_ITEM = /\bservices?\b|\bservi\b|\bsvc\b|layanan|sub\s*-?\s*total|\btotal\b|\btax\b|\bvat\b|\bgst\b|\bppn\b|\bpb\s?1\b|\bpajak\b|\bphr\b|\bp\.?\s?resto?\b|\bmwst\b|\biva\b|\btva\b|\bchange\b|balance|tender|payment|\btip\b|gratuity|discount|diskon|coupon|savings|hemat|rounding|pembulatan|loyalty|points/i;
+const SUMMARY_L = /before\s*round|^\W*(foods?|beverages?|drinks?|others?|makanan|minuman|lain-?\s?lain|dessert)\s*:?\s+(rp\.?\s*)?[\d.,]+\s*$/i;
+const SKIP_ITEM_L = /\bservices?\b|\bservi\b|\bsvc\b|layanan|sub\s*-?\s*total|\btotal\b|\btax\b|\bvat\b|\bgst\b|\bppn\b|\bpb\s?1\b|\bpajak\b|\bphr\b|\bp\.?\s?resto?\b|\bmwst\b|\biva\b|\btva\b|\bchange\b|balance|tender|payment|\btip\b|gratuity|discount|diskon|coupon|savings|hemat|rounding|pembulatan|loyalty|points/i;
 
 /** Value of a printed number in hundredths. "17.500" is seventeen thousand five hundred; "17.50" is seventeen and a half. */
 function toMinor(raw: string) {
@@ -93,7 +93,7 @@ export function fixLetters(s: string) {
 }
 
 const tidy = (s: string) => {
-  const t = fixLetters(s).replace(/\s+/g, ' ').replace(/^[^A-Za-zÀ-ÿ0-9]+|[^A-Za-zÀ-ÿ0-9%)]+$/g, '').trim();
+  const t = fixLetters(s).replace(/\s+/g, ' ').replace(/^[^\p{L}\p{M}\p{N}]+|[^\p{L}\p{M}\p{N}%)]+$/gu, '').trim();
   return t === t.toUpperCase() ? t.toLowerCase().replace(/(^|[\s&/-])([a-zà-ÿ])/g, (_, a, b) => a + b.toUpperCase()) : t;
 };
 
@@ -134,7 +134,7 @@ export function guessSub(name: string, cat?: Category) {
 // ───────── reading menu lines ─────────
 // Lines that carry numbers but are not things you bought: order/table/receipt numbers, cashier, phone,
 // dates and times, loyalty points, column headings, greetings.
-const NOISE = new RegExp([
+const NOISE_L = new RegExp([
   String.raw`\b(order|pesanan)\s*(no|#|:|\d|type)`, String.raw`\b(invoice|inv|receipt|struk|nota|bill\s*no|no\.?\s*(order|struk|nota|bill|trx|transaksi|meja|antrian))\b`,
   String.raw`\btable\s*(no|#|:|\d)`, String.raw`\b(liter|litre|jenis\s*bbm)\b`, String.raw`\b(meja|pax|guests?|tamu|covers?|info|purpose|customer|pelanggan)\b`, String.raw`\btime\s*in\b`, String.raw`^\W*\d+\s+items?\b`,
   String.raw`\b(cashier|kasir|server|waiter|waitress|pelayan|operator|staff)\b`,
@@ -143,13 +143,58 @@ const NOISE = new RegExp([
   String.raw`\b(date|tanggal|tgl|time|jam|waktu)\s*[:\d]`, String.raw`\b(dine\s*in|take\s*away|takeaway|delivery|pickup|www|instagram|ig)\b`,
   String.raw`\b(thank|terima\s*kasih|welcome|selamat)\b`, String.raw`\b(qty|price|harga|total\s*items?|jumlah\s*item)\b`, String.raw`#\w*\d`,
 ].join('|'), 'i');
-const DISCOUNT = /\b(disc(ount)?|diskon|promo|voucher|potongan|hemat|savings?|coupon|kupon)\b/i;
+const DISCOUNT_L = /\b(disc(ount)?|diskon|promo|voucher|potongan|hemat|savings?|coupon|kupon)\b/i;
+
+// ── The same labels in the other languages the app speaks. Latin-script words need whole-word matches
+// (Unicode-aware); Chinese, Japanese, Korean and Thai are written without spaces, so their words match anywhere.
+const words = (latin: string[], joined: string[] = []) => new RegExp([
+  ...(latin.length ? [String.raw`(?:^|[^\p{L}\p{M}\p{N}])(?:${latin.join('|')})(?![\p{L}\p{M}])`] : []), ...joined,
+].join('|'), 'iu');
+const either = (...res: RegExp[]) => ({ test: (s: string) => res.some((r) => r.test(s)) });
+
+const SUBTOTAL_X = words(
+  ['jumlah\\s+kecil', 'kabuuang\\s+halaga', 't[ạa]m\\s+t[íi]nh', 'th[àa]nh\\s+ti[ềe]n', 'c[ộo]ng\\s+ti[ềe]n\\s+h[àa]ng', 'ara\\s+toplam', 'подытог', 'промежуточный\\s+итог', 'сумма',
+    'sous-?\\s?total', 'zwischensumme', 'summe\\s+artikel', 'base\\s+imponible', 'delsum', 'sum\\s+varer', 'mellemsum', 'delsumma', 'summa\\s+varor',
+    'välisumma', 'yhteensä\\s+tuotteet', 'jumla\\s+ndogo', 'المجموع\\s+الفرعي', 'المجموع'],
+  ['小計', '小计', '소\\s?계', '공급가액', '^\\W*รวม(?:เงิน)?(?=\\s|\\d|$)', 'ยอดรวมย่อย']);
+const TOTAL_X = words(
+  ['kabuuan', 'total\\s+due', 't[ổo]ng\\s+c[ộo]ng', 'thanh\\s+to[áa]n', 't[ổo]ng\\s+ti[ềe]n', 'toplam', 'genel\\s+toplam', '[öo]denecek(\\s+tutar)?', 'итого?', 'к\\s+оплате',
+    'net\\s+[àa]\\s+payer', 'ttc', 'gesamt(betrag)?', 'zu\\s+zahlen', 'total\\s+a\\s+pagar', 'valor\\s+(a\\s+pagar|total)', 'totalt', '[åa]\\s+betale', 'sum', 'i\\s+alt', 'at\\s+betale',
+    'att\\s+betala', 'summa', 'yhteens[äa]', 'maksettava', 'jumla(\\s+kuu)?', 'الإجمالي', 'المجموع\\s+الكلي', 'المبلغ\\s+المستحق'],
+  ['合\\s?計', '合\\s?计', '总计', '總計', '应付', '應付', '实收金额', 'お会計', '합\\s?계', '총액', '받을\\s?금액', '결제\\s?금액', 'รวมทั้งสิ้น', 'ยอดสุทธิ', 'ยอดรวมสุทธิ']);
+const TAX_X = words(
+  ['sst', 'cukai(\\s+perkhidmatan)?', 'thu[ếe](\\s+(vat|gtgt))?', 'kdv', 'topkdv', 'ндс', 'ust', 'mehrwertsteuer', 'impostos?', 'mva', 'moms', 'alv', 'kodi', 'ضريبة', 'الضريبة'],
+  ['消費税', '外税', '内税', '税额', '税額', '稅額', '增值税', '營業稅', '부가\\s?세', '부가가치세', 'ภาษี']);
+/** "Tax included" wording: the tax is already in the prices, not added on top. */
+const TAX_INCLUDED = words(
+  ['incl\\.?', 'inkl\\.?', 'termasuk', 'inclusive', 'vatable', 'dont', 'inclus[ae]?', 'inclu[íi]d[oa]', 'dahil', 'в\\s+т\\.?\\s?ч\\.?', 'включ[её]н', 'herav', 'heraf', 'varav', 'sis\\.?', 'joista', 'enth\\.?', 'pamoja', 'شامل'],
+  ['内', '含税', '포함', 'รวมภาษี']);
+const SERVICE_X = words(
+  ['caj\\s+perkhidmatan', 'bayad\\s+sa\\s+serbisyo', 'ph[íi]\\s+(ph[ụu]c\\s+v[ụu]|d[ịi]ch\\s+v[ụu])', 'servis(\\s+[üu]creti)?', 'обслуживание', 'bedienung(?!\\s*:)', 'servicio', 'propina',
+    'taxa\\s+de\\s+servi[çc]o', 'servi[çc]o', 'palvelumaksu', 'huduma', 'رسوم\\s+الخدمة'],
+  ['サービス料', '服务费', '服務費', '加一', '봉사료', 'ค่าบริการ']);
+const PAID_X = words(
+  ['ti[ềe]n\\s+m[ặa]t', 'kh[áa]ch\\s+[đd]ưa', 'ti[ềe]n\\s+(th[ốo]i|th[ừu]a)', 'tr[ảa]\\s+l[ạa]i', 'sukli', 'bayad', 'baki', 'wang\\s+baki', 'nakit', 'para\\s+[üu]st[üu]', 'наличн\\p{L}*', 'сдача',
+    'monnaie(\\s+rendue)?', 'gegeben', 'zur[üu]ck', 'entregado', 'vuelto', 'dinheiro', 'troco', 'valor\\s+pago', 'kontanter', 'veksel', 'tilbake', 'byttepenge', 'modtaget', 'retur',
+    'v[äa]xel', 'erh[åa]llet', 'tillbaka', 'k[äa]teinen', 'vaihtoraha', 'takaisin', 'taslimu', 'pesa\\s+taslimu', 'chenji', 'نقدا', 'المدفوع', 'الباقي'],
+  ['お預[りか]', 'お釣り', 'おつり', '现金', '現金', '找零', '找贖', '实收(?!金额)', '收款', '현금', '거스름돈', '잔돈', '받은\\s?금액', 'เงินสด', 'เงินทอน', '^\\W*ทอน']);
+const DISCOUNT_X = words(
+  ['gi[ảa]m\\s+gi[áa]', 'chi[ếe]t\\s+kh[ấa]u', 'diskaun', 'diskwento', '[İi]ndirim', 'скидка', 'remise', 'r[ée]duction', 'rabatt?', 'nachlass', 'descuento', 'dto\\.?', 'desconto', 'alennus', 'punguzo', 'خصم'],
+  ['値引', '割引', '折扣', '优惠', '優惠', '할인', 'ส่วนลด']);
+const NOISE_X = words(
+  ['thu\\s+ng[âa]n', 'juruwang', 'kasiyer', 'кассир', 'serveur', 'kellner', 'camarero', 'atendente', 'kasserer', 'ekspedient', 'kass[öo]r', 'myyj[äa]', 'mhudumu', 'الكاشير',
+    'b[àa]n', 'masa', 'стол', 'tisch', 'mesa', 'bord', 'p[öo]yt[äa]', 'meza', 'طاولة', 'bedienung\\s*:', 's[ốo]\\s+h[đd]', 'no\\.?\\s+resit', 'or\\s+no', 'fi[şs]\\s+no', 'чек', 'ticket', 'bon(-?nr)?',
+    'pedido', 'kvittering', 'kvitto', 'kuitti', 'risiti', 'رقم\\s+الفاتورة'],
+  ['担当', 'レジ', '伝票', '收银员', '收銀員', '桌号', '桌號', '单号', '單號', '담당', '테이블', '주문번호', 'พนักงาน', 'โต๊ะ', 'เลขที่']);
+const TOTAL = either(TOTAL_L, TOTAL_X), PAID = either(PAID_L, PAID_X), SERVICE = either(SERVICE_L, SERVICE_X), TAX = either(TAX_L, TAX_X);
+const SUBTOTAL = either(SUBTOTAL_L, SUBTOTAL_X), SUMMARY = SUMMARY_L, DISCOUNT = either(DISCOUNT_L, DISCOUNT_X), NOISE = either(NOISE_L, NOISE_X);
+const NOT_TOTAL = either(NOT_TOTAL_L, SUBTOTAL_X), SKIP_ITEM = either(SKIP_ITEM_L, SUBTOTAL_X, TOTAL_X, TAX_X, SERVICE_X, PAID_X, DISCOUNT_X);
 const SEP = /^[xX×@=]$/;
-const JUNK = /^[^A-Za-z0-9]+$/; // "~~", "|", "=", "[." — specks from the table or paper edge
+const JUNK = /^[^\p{L}\p{M}\p{N}]+$/u; // "~~", "|", "=", "[." — specks from the table or paper edge
 /** Short garbage the OCR adds at line ends from the background ("FE", "Ae", "My,", "[."). */
-const TAIL_JUNK = /^(?:[^A-Za-z0-9]+|[A-Za-z]{1,3}[^A-Za-z0-9]*|[^A-Za-z0-9]*[A-Za-z]{1,3})$/;
+const TAIL_JUNK = /^(?:[^\p{L}\p{M}\p{N}]+|[A-Za-z]{1,3}[^\p{L}\p{M}\p{N}]*|[^\p{L}\p{M}\p{N}]*[A-Za-z]{1,3})$/u;
 const CUR_TOK = new RegExp(String.raw`^(?:${CUR})$`, 'i');
-const NUM_TOK = new RegExp(String.raw`^\(?([@©])?(?:(${CUR})\.?)?(-|−)?(?:(${CUR})\.?)?(${NUMBER})(${CUR})?\)?[.,;:]?$`, 'i');
+const NUM_TOK = new RegExp(String.raw`^\(?[=*]?([@©])?(?:(${CUR})\.?)?(-|−)?(?:(${CUR})\.?)?(${NUMBER})(${CUR})?\)?[.,;:]?$`, 'i');
 
 interface Tok { value: number; raw: string; money: boolean; qty?: number; neg: boolean; each: boolean }
 /** The numbers at the end of a line (right to left: total, price each, quantity) and the words before them. */
@@ -160,7 +205,8 @@ function tail(line: string, decimalMode: boolean) {
   const nums: Tok[] = [];
   while (words.length && nums.length < 4) {
     const w = words[words.length - 1];
-    if (SEP.test(w)) { if (nums[0]) nums[0].each = true; words.pop(); continue; } // "2 x 20.000": the price after x is per item
+    if (SEP.test(w)) { if (nums[0]) nums[0].each = true; words.pop(); continue; }
+    if (CUR_TOK.test(w) && !nums.length && digitBefore(words.length - 1)) { words.pop(); continue; } // "295.00 บาท" // "2 x 20.000": the price after x is per item
     if (JUNK.test(w) && nums.length) { words.pop(); continue; }
     if (CUR_TOK.test(w) && nums.length) { words.pop(); continue; } // "Rp 17.500" split in two
     const q = w.match(/^(?:(\d{1,2})([xX×@%»])|[xX×@](\d{1,2}))$/); // 2x · 1@ · 1% (OCR for 1x) · x2
@@ -213,14 +259,19 @@ function readLine(line: string, decimalMode: boolean): Line | null {
   return { label: name, qty, unit: Math.round(total / qty), total, neg: money.some((n) => n.neg), alts: [...new Set(alts)], hasTotal: !!totalTok };
 }
 
+/** A dish name has at least one real word, not just OCR specks like "{x eo": three letters, or two in Chinese, Japanese or Korean. */
+const hasName = (s: string) => /[\p{L}\p{M}]{3,}|[\p{Script=Han}\p{Script=Hiragana}\p{Script=Katakana}\p{Script=Hangul}]{2,}/u.test(s);
+/** Also a whole two-letter word written like a name: "Su" (water), "Øl" (beer), "Te" (tea). OCR specks are rarely written so. */
+const isName = (s: string) => hasName(s) || /^\p{Lu}\p{Ll}$/u.test(s.trim());
+
 /** Strip OCR specks around a dish name: "| Cincau Sedjuk =", "Bakmi Ayam Oven Komplit gE", "i Putih". */
 function cleanName(raw: string) {
   const t = raw.replace(/^[+\-•*]\s*/, '').replace(/^\d{4,}\s+/, '').split(/\s+/).filter(Boolean);
-  const real = (k: number) => t.filter((w, i) => i !== k && /[A-Za-zÀ-ÿ]{3,}/.test(w)).length > 0;
+  const real = (k: number) => t.filter((w, i) => i !== k && hasName(w)).length > 0;
   // "BY Bakso Kuah": two capitals glued in front of a normally written name are a speck; "ES TEH MANIS" is left alone.
   while (t.length > 2 && /^[A-Z]{2}$/.test(t[0]) && /^[A-Z][a-z]/.test(t[1])) t.shift();
-  while (t.length > 1 && (JUNK.test(t[0]) || (/^[A-Za-z0-9]$/.test(t[0]) || /^[^A-Za-z0-9]*[A-Za-z0-9]{0,2}[^A-Za-z0-9]+$/.test(t[0])) && real(0))) t.shift();
-  const speck = (w: string) => /^[A-Za-z]{1,2}[^A-Za-z0-9]*$/.test(w) || /^\d$/.test(w) || (/^(?=.*\d)(?=.*[A-Za-z])[A-Za-z0-9]{2}$/.test(w) && !/^\d[lLgGkKmMxX]$/.test(w)); // keeps sizes like 2L
+  while (t.length > 1 && (JUNK.test(t[0]) || (/^[\p{L}\p{N}]$/u.test(t[0]) || /^[^\p{L}\p{M}\p{N}]*[\p{L}\p{M}\p{N}]{0,2}[^\p{L}\p{M}\p{N}]+$/u.test(t[0])) && real(0))) t.shift();
+  const speck = (w: string) => /^[A-Za-z]{1,2}[^\p{L}\p{M}\p{N}]*$/u.test(w) || /^\d$/.test(w) || (/^(?=.*\d)(?=.*[A-Za-z])[A-Za-z0-9]{2}$/.test(w) && !/^\d[lLgGkKmMxX]$/.test(w)); // keeps sizes like 2L
   while (t.length > 1 && (JUNK.test(t[t.length - 1]) || speck(t[t.length - 1]) && real(t.length - 1))) t.pop();
   return tidy(t.join(' '));
 }
@@ -249,17 +300,31 @@ function findMerchant(lines: string[]) {
     if (NOISE.test(raw) || /receipt|invoice|welcome|thank|www\.|^\W*(jl|jalan|street|st|road|rd|no)\b\.?/i.test(raw) || /\d{3,}/.test(raw)) continue;
     const line = cleanName(raw);
     const words = line.split(/\s+/).filter(Boolean);
-    const good = words.filter((w) => /^[A-Za-zÀ-ÿ'’.]{2,}$/.test(w) || w === '&' || w === '-');
+    const good = words.filter((w) => /^[\p{L}\p{M}'’.]{2,}$/u.test(w) || w === '&' || w === '-');
     const bad = words.length - good.length;
-    const letters = good.join('').replace(/[^A-Za-zÀ-ÿ]/g, '').length;
+    const letters = good.join('').replace(/[^\p{L}\p{M}]/gu, '').length;
     const score = letters - 6 * bad;
     if (good.filter((w) => w.length >= 3).length >= 1 && letters >= 4 && score > bestScore) { best = line; bestScore = score; }
   }
   return best.slice(0, 60);
 }
 
+/** Arabic-Indic and Persian digits (٣٤٫٥٠) as 0-9, with their decimal and thousands marks. */
+function normalizeDigits(s: string) {
+  return s.replace(/[٠-٩]/g, (d) => String(d.charCodeAt(0) - 0x660)).replace(/[۰-۹]/g, (d) => String(d.charCodeAt(0) - 0x6f0)).replace(/٫/g, ',').replace(/٬/g, '.');
+}
+/** "1 234,50" (thousands split by a space, as in France, Scandinavia and Russia) as one number. Only a single space and
+ * exactly three digits after it, followed by cents or a currency, so "2  450,00" (quantity, then price) is left alone. */
+function joinSpaceGroups(l: string) {
+  const re = new RegExp(String.raw`(^|[^\d.,])(\d{1,3})[ \u00a0\u202f](\d{3})(?=[.,]\d{2}(?!\d)|\s*(?:${CUR})(?![\p{L}])|[ \u00a0\u202f]\d{3}[.,]\d{2})`, 'giu');
+  let prev = '';
+  while (prev !== l) { prev = l; l = l.replace(re, '$1$2$3'); }
+  return l;
+}
+
 export function parseReceipt(text: string, cats: Category[]): Receipt {
-  const lines = text.split('\n').map((l) => l.trim()).filter(Boolean);
+  text = normalizeDigits(text);
+  const lines = text.split('\n').map((l) => joinSpaceGroups(l.trim())).filter(Boolean);
   // Merchant: first line near the top that is mostly letters.
   const merchant = findMerchant(lines);
 
@@ -270,9 +335,8 @@ export function parseReceipt(text: string, cats: Category[]): Receipt {
   const decimalMode = withCents >= 2 && withCents >= lines.filter((l, i) => !prices[i]?.decimals && /\d[.,']\d{3}(?![.,]?\d)/.test(l)).length;
   const usable = (p: Price | null): p is Price => !!p && p.value !== 0 && (decimalMode ? p.decimals : p.value >= 100 || p.currency);
   const priceAt = (i: number) => (usable(prices[i]) ? prices[i] : null);
-  const hasWords = (s: string) => (s.match(/[A-Za-zÀ-ÿ]/g) ?? []).length >= 2;
+  const hasWords = (s: string) => (s.match(/[\p{L}]/gu) ?? []).length >= 2;
   /** A dish name has at least one real word, not just OCR specks like "{x eo". */
-  const hasName = (s: string) => /[A-Za-zÀ-ÿ]{3,}/.test(s);
 
   let totalIdx = lines.length;
   let totalLines = lines.map((l, i) => i).filter((i) => TOTAL.test(lines[i]) && !NOT_TOTAL.test(lines[i]));
@@ -301,7 +365,7 @@ export function parseReceipt(text: string, cats: Category[]): Receipt {
     const l = lines[i];
     if (isOther(l)) { pending = null; continue; }
     const r = readLine(l, decimalMode);
-    if (r && !hasName(r.label)) {
+    if (r && !isName(r.label)) {
       // A numbers-only line belongs to the dish named just above it.
       if (pending) { items.push({ name: pending, amount: r.total, qty: r.qty, unit: r.unit, alts: r.alts }); pending = null; lastAt = i; }
       else if (!items.length || orphanMode) { orphan = r; orphanMode = true; }
@@ -314,11 +378,11 @@ export function parseReceipt(text: string, cats: Category[]): Receipt {
       }
       continue;
     }
-    if (r && r.total > 0 && !r.neg) { const name = cleanName(r.label); if (hasName(name)) { items.push({ name, amount: r.total, qty: r.qty, unit: r.unit, alts: r.alts }); lastAt = i; pending = null; continue; } }
-    if (!r && hasName(l)) {
+    if (r && r.total > 0 && !r.neg) { const name = cleanName(r.label); if (isName(name)) { items.push({ name, amount: r.total, qty: r.qty, unit: r.unit, alts: r.alts }); lastAt = i; pending = null; continue; } }
+    if (!r && isName(l)) {
       const name = cleanName(l);
-      if (orphan && hasName(name)) { if (orphan.total > 0) items.push({ name, amount: orphan.total, qty: orphan.qty, unit: orphan.unit, alts: orphan.alts }); orphan = null; pending = null; lastAt = i; continue; }
-      pending = hasName(name) ? name : null;
+      if (orphan && isName(name)) { if (orphan.total > 0) items.push({ name, amount: orphan.total, qty: orphan.qty, unit: orphan.unit, alts: orphan.alts }); orphan = null; pending = null; lastAt = i; continue; }
+      pending = isName(name) ? name : null;
     }
   }
   // The amount can be on the line under "Sub Total" when the photo is tilted or the column is narrow.
@@ -343,7 +407,7 @@ export function parseReceipt(text: string, cats: Category[]): Receipt {
   if (subLine && charges.discount && sum - charges.discount === subLine) charges.discount = 0;
   for (let i = 0; i < lines.length; i++) {
     const l = lines[i], p = priceAt(i);
-    const svc = SERVICE.test(l), tx = !svc && TAX.test(l) && !/incl|termasuk|inkl/i.test(l) && !SUBTOTAL.test(l);
+    const svc = SERVICE.test(l), tx = !svc && TAX.test(l) && !TAX_INCLUDED.test(l) && !SUBTOTAL.test(l);
     if (!svc && !tx) continue;
     // "PB1 (10%)" with its amount on the line below.
     if (!p) { const v = amountOnly(i + 1); if (v && v < subtotal) { if (svc) charges.service += v; else charges.tax += v; } }
@@ -357,7 +421,7 @@ export function parseReceipt(text: string, cats: Category[]): Receipt {
       const l = lines[i];
       if (TOTAL.test(l) || PAID.test(l) || SERVICE.test(l) || DISCOUNT.test(l)) continue;
       const v = priceAt(i)?.value ?? readLine(l, decimalMode)?.total ?? 0;
-      if (v > 0 && !hasWords(l.replace(/[^A-Za-z\s]/g, ' ').split(/\s+/).filter((w) => w.length > 2).join(' ')) && v < subtotal * 0.3) { charges.tax = v; break; }
+      if (v > 0 && !hasWords(l.replace(/[^\p{L}\p{M}\s]/gu, ' ').split(/\s+/).filter((w) => w.length > 2).join(' ')) && v < subtotal * 0.3) { charges.tax = v; break; }
     }
   }
 
@@ -378,6 +442,8 @@ export function parseReceipt(text: string, cats: Category[]): Receipt {
     const pick = near.find((p) => p.currency) ?? near.filter((p) => p.value >= sum).sort((a, b) => a.value - b.value)[0] ?? paidFit;
     if (pick) { total = pick.value; break; }
   }
+  // Tax already in the prices (Europe, Japan, Thailand…): the printed total is the items without it, so it isn't added again.
+  if (total && charges.tax && !fits(total) && Math.abs(total - (subtotal - charges.discount + charges.service)) <= 100) charges.tax = 0;
   const totalPrinted = !!total && (total >= subtotal || fits(total) || (charges.discount > 0 && total >= subtotal - charges.discount));
   if (!totalPrinted && subtotal) total = expected;
   if (!total) total = sum || Math.max(0, ...prices.filter((p, i): p is Price => usable(p) && !PAID.test(lines[i])).map((p) => p.value));
@@ -492,11 +558,16 @@ function cleanForOcr(src: HTMLCanvasElement): HTMLCanvasElement {
 }
 
 export type ScanStage = 'reading' | 'checking';
+/** Text-reader models for an app language: its own script plus English (receipts mix in Latin words and prices). */
+export function ocrLangs(appLang = 'en') {
+  const own: Record<string, string> = { ja: 'jpn', ko: 'kor', 'zh-Hans': 'chi_sim', 'zh-Hant': 'chi_tra', th: 'tha', ar: 'ara', ru: 'rus', vi: 'vie' };
+  return own[appLang] ? (appLang === 'vi' ? 'vie' : `${own[appLang]}+eng`) : 'eng';
+}
 /**
  * Reads a receipt photo. Progress is one bar that only moves forward: the first reading fills it to 70%, and each
  * extra pass (only when a reading doesn't add up) fills 70% of what is left, so it never jumps back to 0.
  */
-export async function scanReceipt(file: Blob, cats: Category[], onProgress: (p: number, stage: ScanStage) => void): Promise<Receipt> {
+export async function scanReceipt(file: Blob, cats: Category[], onProgress: (p: number, stage: ScanStage) => void, appLang = 'en'): Promise<Receipt> {
   let passNo = 0, shown = 0;
   const report = (p: number) => {
     const from = 1 - 0.3 ** passNo, to = 1 - 0.3 ** (passNo + 1);
@@ -508,7 +579,7 @@ export async function scanReceipt(file: Blob, cats: Category[], onProgress: (p: 
   // If the engine or language files fail to load, tesseract.js waits forever; give up with a clear error instead.
   let timer: ReturnType<typeof setTimeout> | undefined;
   const timeout = new Promise<never>((_, rej) => { timer = setTimeout(() => rej(new Error('the text reader didn’t start')), 45000); });
-  const starting = createWorker('eng', 1, {
+  const starting = createWorker(ocrLangs(appLang).split('+'), 1, {
     workerPath: base + 'worker.min.js', corePath: base, langPath: base, workerBlobURL: false, gzip: false,
     logger: (m: { status: string; progress: number }) => { if (m.status === 'recognizing text') report(m.progress); },
     errorHandler: (e: unknown) => console.error('ocr worker', e),
@@ -531,7 +602,7 @@ export async function scanReceipt(file: Blob, cats: Category[], onProgress: (p: 
       const sum = r.items.reduce((a, it) => a + it.amount, 0), c = r.charges;
       if (!sum) return false;
       if (r.subtotal) return sum === r.subtotal;
-      return !!c && Math.abs(r.total - (sum - c.discount + c.service + c.tax)) <= 1 && /total/i.test(r.text);
+      return !!c && Math.abs(r.total - (sum - c.discount + c.service + c.tax)) <= 1 && TOTAL.test(r.text);
     };
     let best = parseReceipt(pass.text, cats);
     if (good(best)) return best;

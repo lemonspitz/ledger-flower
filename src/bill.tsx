@@ -8,7 +8,7 @@ import { scanReceipt, type Receipt } from './receipt';
 import { computeBill, ratesOf, type BillItem } from './split';
 import { put, txId, type PayKind, type Tx } from './store';
 import { Field, Icon, Modal, Seg } from './ui';
-import { getLocale, t, tp } from './i18n';
+import { getLang, getLocale, t, tp } from './i18n';
 
 export const OWED_ACC = 'acc_owed';
 const ME = 'me';
@@ -95,7 +95,7 @@ export function BillSplit({ m, init, ctx, onBack, onSaved, onScanned }: { m: Mod
     if (!file) return;
     setScan({ busy: true, progress: 0 });
     try {
-      const r = await scanReceipt(file, m.categories, (p, stage) => setScan({ busy: true, progress: p, stage }));
+      const r = await scanReceipt(file, m.categories, (p, stage) => setScan({ busy: true, progress: p, stage }), getLang());
       if (!r.items.length) {
         setScan({ text: r.text, error: r.text.trim() ? t('No menu items could be picked out. Check the text below, try a flatter, closer photo, or type the items in.') : t('No text could be read. Try a sharper, well-lit photo with the receipt filling the frame.') });
         return;

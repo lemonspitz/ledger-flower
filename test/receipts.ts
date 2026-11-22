@@ -334,4 +334,92 @@ Paid:   50,000.00
 Change:   0.00`,
     expect: { items: [['medium tub', 1, 4900000], ['Take Away Charge', 1, 100000]], subtotal: 4545455, total: 5000000, tax: 454545 },
   },
+  // ── Other languages (see bench/synth.ts) ──
+  {
+    name: 'German: prices include MwSt, so the tax line is not added on top; "EUR 12,50" and "Bar / Rückgeld"',
+    text: `Bäckerei Müller
+Bon-Nr. 4417
+Brezel 3x                       EUR 5,40
+Apfelschorle                    EUR 2,00
+Zwischensumme                   EUR 7,40
+SUMME                           EUR 7,40
+MwSt 19%                            1,18
+Bar                            EUR 10,00
+Rückgeld                        EUR 2,60`,
+    expect: { items: [['Brezel', 3, 180], ['Apfelschorle', 1, 200]], subtotal: 740, total: 740, tax: 0 },
+  },
+  {
+    name: 'Japanese: 小計 / 消費税 added / 合計 / お預り / お釣り, yen without decimals, two-character names',
+    text: `食堂さくら
+伝票番号 0451
+ラーメン 2x                       ¥1,700
+緑茶                                ¥200
+小計                              ¥1,900
+消費税 10%                          ¥190
+合計                              ¥2,090
+お預り                            ¥3,000
+お釣り                              ¥910`,
+    expect: { items: [['ラーメン', 2, 85000], ['緑茶', 1, 20000]], subtotal: 190000, total: 209000, tax: 19000, taxPct: 10 },
+  },
+  {
+    name: 'Thai: บาท after the amount, ค่าบริการ service, VAT included in the net total',
+    text: `ครัวคุณแม่
+โต๊ะ 4
+ผัดไทย                        295.00 บาท
+ชาเย็น 2x                     90.00 บาท
+รวม                           385.00 บาท
+ค่าบริการ 10%                  38.50 บาท
+ยอดสุทธิ                      423.50 บาท
+ภาษีมูลค่าเพิ่ม 7%                 27.71`,
+    expect: { items: [['ผัดไทย', 1, 29500], ['ชาเย็น', 2, 4500]], subtotal: 38500, total: 42350, service: 3850, tax: 0 },
+  },
+  {
+    name: 'Russian: "1 234,50 ₽" with a space between thousands, ИТОГ, НДС included',
+    text: `Кафе Уют
+Чек № 1123
+Борщ                          1 250,00 ₽
+Чай черный 2x                   240,00 ₽
+Подытог                       1 490,00 ₽
+ИТОГ                          1 490,00 ₽
+в т.ч. НДС 20%                    248,33
+Наличные                      1 500,00 ₽
+Сдача                            10,00 ₽`,
+    expect: { items: [['Борщ', 1, 125000], ['Чай черный', 2, 12000]], subtotal: 149000, total: 149000, tax: 0 },
+  },
+  {
+    name: 'Arabic: Arabic-Indic digits, ر.س after the amount, VAT added',
+    text: `مطعم الريف
+طاولة ٥
+شاورما دجاج                    ٢٥.٠٠ ر.س
+قهوة عربية                     ١٥.٠٠ ر.س
+المجموع الفرعي                 ٤٠.٠٠ ر.س
+ضريبة القيمة المضافة 15%        ٦.٠٠ ر.س
+الإجمالي                       ٤٦.٠٠ ر.س`,
+    expect: { items: [['شاورما دجاج', 1, 2500], ['قهوة عربية', 1, 1500]], subtotal: 4000, total: 4600, tax: 600 },
+  },
+  {
+    name: 'Turkish: "*185,00" amounts, a two-letter dish ("Su"), KDV Dahil (included)',
+    text: `Lezzet Lokantası
+Fiş No: 0045
+Baklava                          *185,00
+Su                                *20,00
+Ara Toplam                       *205,00
+TOPLAM                           *205,00
+KDV Dahil 10%                      18,64
+NAKİT                            *205,00`,
+    expect: { items: [['Baklava', 1, 18500], ['Su', 1, 2000]], subtotal: 20500, total: 20500, tax: 0 },
+  },
+  {
+    name: 'Vietnamese: "12.000đ", Tạm tính / Thuế VAT / Tổng cộng, accented names kept whole',
+    text: `Quán Phở Hà Nội
+Thu ngân: Lan
+Phở bò 2x                       120.000đ
+Bún chả                          55.000đ
+Tạm tính                        175.000đ
+Thuế VAT 8%                      14.000đ
+Tổng cộng                       189.000đ
+Tiền mặt                        200.000đ
+Tiền thối                        11.000đ`,
+    expect: { items: [['Phở bò', 2, 6000000], ['Bún chả', 1, 5500000]], subtotal: 17500000, total: 18900000, tax: 1400000 },
+  },
 ];
