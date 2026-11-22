@@ -559,3 +559,27 @@ input, select, textarea { border-radius: 12px; }
 
 /* Right-to-left languages: chart text is positioned by the chart itself, so keep its own direction. */
 [dir='rtl'] svg text { direction: ltr; unicode-bidi: plaintext; }
+
+/* ── import ── */
+.imp section h3 { font-size: 13px; font-weight: 600; color: var(--ink-2); margin: 2px 0 8px; text-transform: uppercase; letter-spacing: .04em; }
+.imp-cols { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 8px; }
+.imp-cols label { display: flex; flex-direction: column; gap: 3px; padding: 8px; border: 1px solid var(--line); border-radius: 12px; min-width: 0; }
+.imp-cols label.off { opacity: .55; }
+.imp-col-name { font-size: 13px; font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.imp-cols small { font-size: 12px; color: var(--ink-3); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; min-height: 1.2em; }
+.imp-cols select { margin-top: 2px; }
+.imp-map { display: flex; flex-direction: column; gap: 6px; }
+.imp-map > div { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1.2fr); gap: 10px; align-items: center; }
+.imp-map span { display: flex; flex-direction: column; min-width: 0; }
+.imp-map b { font-weight: 550; font-size: 14px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.imp-map small { font-size: 12px; color: var(--ink-3); }
+.imp-preview td:first-child { white-space: nowrap; color: var(--ink-3); font-size: 13px; }
+.imp-note { max-width: 0; width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.imp-note small { display: block; font-size: 12px; color: var(--ink-3); }
+.imp-notes { margin: 10px 0 0; padding-left: 18px; font-size: 13px; color: var(--ink-2); display: flex; flex-direction: column; gap: 4px; }
+.imp-warn { color: var(--crit-ink, #b42318); font-size: 13px; margin-top: 6px; }
+.imp-done { font-size: 14.5px; line-height: 1.5; }
+@media (max-width: 560px) { .imp-map > div { grid-template-columns: 1fr; gap: 4px; } }
+.imp-preview { width: 100%; border-collapse: collapse; font-size: 14px; }
+.imp-preview td { padding: 9px 8px 9px 0; border-top: 1px solid var(--line); vertical-align: top; }
+.imp-preview .r { text-align: right; padding-right: 0; }

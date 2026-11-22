@@ -6,6 +6,9 @@ import { Directory, Encoding, Filesystem } from '@capacitor/filesystem';
 import { Share } from '@capacitor/share';
 import { NUM_FORMATS, curMonth, moneyFormatter, useModel, type Model } from './calc';
 import { buildWorkbook, csvName, toTidyCsv, xlsxName } from './export';
+import { createPortal } from 'react-dom';
+import { ImportDialog } from './ImportDialog';
+import { readFile, type Sheet } from './importer';
 import { demoData } from './demo';
 import { Dialogs, type Dialog } from './forms';
 import { flushSave, getData, replaceAll, put, runRecurring, type Data, type Settings, type NumFmt } from './store';
@@ -235,6 +238,14 @@ function SettingsView({ m, prefs, setPrefs, open }: { m: Model; prefs: LocalPref
   // Keep the other preferences in the record when changing one of them.
   const saveSettings = (patch: Partial<Settings>) => put('settings', { ...(m.data.settings.settings as Settings | undefined), id: 'settings', currency: m.currency, ...patch } as Settings);
   const [confirm, setConfirm] = useState<'demo' | 'erase' | null>(null);
+  const [importing, setImporting] = useState<{ file: string; sheets: Sheet[] } | null>(null);
+  const startImport = (file: File) => {
+    setBusy(true);
+    void readFile(file).then((sheets) => {
+      if (!sheets.some((s) => s.rows.length > 1)) throw new Error(t('no table in it'));
+      setImporting({ file: file.name, sheets });
+    }).catch((e) => alert(t('That file couldn’t be read ({reason}).', { reason: (e as Error).message }))).finally(() => setBusy(false));
+  };
   const restore = (file: File) => file.text().then((t) => {
     const d = JSON.parse(t) as Partial<Data>;
     if (!d || typeof d !== 'object' || !d.tx || !d.accounts) throw new Error('not a backup');
@@ -330,12 +341,14 @@ function SettingsView({ m, prefs, setPrefs, open }: { m: Model; prefs: LocalPref
           <button className="btn primary" disabled={busy} onClick={() => { setBusy(true); void exportExcel(m, plant).catch((e) => alert(t('Could not create the Excel report: {reason}', { reason: (e as Error).message }))).finally(() => setBusy(false)); }}>{busy ? t('Preparing…') : t('Export Excel report')}</button>
           <button className="btn" onClick={() => void download(csvName(), toTidyCsv(m), 'text/csv')}>{t('Export CSV')}</button>
           <button className="btn" onClick={() => void download(`ledger-flower-backup-${new Date().toISOString().slice(0, 10)}.json`, JSON.stringify(getData()), 'application/json')}>{t('Download backup')}</button>
+          <label className="btn">{t('Import from another app or spreadsheet')}<input type="file" accept=".csv,.tsv,.txt,.xlsx,.xlsm,.xls,.ods,.numbers,text/csv,application/vnd.ms-excel,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" hidden onChange={(e) => { const f = e.target.files?.[0]; if (f) startImport(f); e.target.value = ''; }} /></label>
           <label className="btn">{t('Restore backup')}<input type="file" accept="application/json,.json" hidden onChange={(e) => { const f = e.target.files?.[0]; if (f) void restore(f); e.target.value = ''; }} /></label>
         </div>
         <div className="btn-row">
           <button className="btn" onClick={() => setConfirm('demo')}>{t('Load sample data')}</button>
           <button className="btn danger ghost" onClick={() => setConfirm('erase')}>{t('Erase everything')}</button>
         </div>
+        {importing && createPortal(<ImportDialog m={m} file={importing.file} sheets={importing.sheets} close={() => setImporting(null)} />, document.body)}
         {confirm && (
           <div className="confirm">
             <p>{confirm === 'demo' ? (prefs.code ? t('This replaces all current data with a year of sample data — on every synced device.') : t('This replaces all current data with a year of sample data.')) : (prefs.code ? t('This permanently deletes all transactions, budgets, goals and accounts — on every synced device.') : t('This permanently deletes all transactions, budgets, goals and accounts.'))}</p>
