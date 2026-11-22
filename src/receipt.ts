@@ -26,7 +26,7 @@ export function detectPayment(text: string): PaidWith | undefined {
 const CUR = String.raw`(?:nt\$|hk\$|r\$|[$€£¥₹₩₱฿₫₺₽円元원đ]|rp\.?|idr|rm|usd|eur|sgd|php|thb|vnd|jpy|krw|inr|aed|sar|ksh|tsh|chf|nok|sek|dkk|kr\.?|руб\.?|tl|บาท|ر\.س|د\.إ)`;
 const NUMBER = String.raw`\d{1,3}(?:[.,'’]\d{3})+(?:[.,]\d{1,2})?|\d+(?:[.,]\d{1,2})?`;
 const LINE_PRICE = new RegExp(String.raw`^(.*?)[\s:.*@=-]*(?:(${CUR})\s?)?(-|−)?\s?(${NUMBER})\s*(?:${CUR}|[A-Za-z*#]{1,3})?\s*$`, 'i');
-const TOTAL_L = /^\W*due\b|^\W*(tl|gt)\s+(rp\.?\s*)?[\d.,]+\s*$|\b(grand\s*total|total|amount\s*due|balance\s*due|to\s*pay|jumlah|tagihan|totale|totaal|gesamt|summe|betrag|importe|montant)\b|合計|合计/i;
+const TOTAL_L = /^\W*due\b|\bt[o0a]t[a4@]l\b|^\W*(tl|gt)\s+(rp\.?\s*)?[\d.,]+\s*$|\b(grand\s*total|total|amount\s*due|balance\s*due|to\s*pay|jumlah|tagihan|totale|totaal|gesamt|summe|betrag|importe|montant)\b|合計|合计/i;
 const NOT_TOTAL_L = /\bqty\b|su[bd][\s.-]*t\s*o?\s*t\s*a?\s*l\b|\bprice\b|\bharga\b|sub\s*-?\s*total|total\s*(tax|vat|savings?|items?|discount|qty|disc|hemat|item|menu)|items?\s*total|\bdpp\b|tax\s*total|points/i;
 const PAID_L = /^\W*bar\b|\b(cash|change|tender|tunai|kembali(an)?|r[uü]ckgeld|efectivo|cambio|esp[eè]ces|rendu|contanti|resto|kontant|card|visa|master\s?card|amex|debit|kartu|qris|ovo|gopay|dana)\b/i;
 const SERVICE_L = /\b(services?|servi|ser(?=\s+\d{1,2}\s?%)|svc|serv\.?\s?ch(?:ar)?ge?|s\.?\s?charge|layanan|biaya\s+layanan|gratuity|tip|sc(?=\s*[:\d(%]))\b/i;
@@ -150,12 +150,14 @@ const DISCOUNT_L = /\b(disc(ount)?|diskon|promo|voucher|potongan|hemat|savings?|
 const words = (latin: string[], joined: string[] = []) => new RegExp([
   ...(latin.length ? [String.raw`(?:^|[^\p{L}\p{M}\p{N}])(?:${latin.join('|')})(?![\p{L}\p{M}])`] : []), ...joined,
 ].join('|'), 'iu');
-const either = (...res: RegExp[]) => ({ test: (s: string) => res.some((r) => r.test(s)) });
+/** Without accents: the text reader often drops or swaps them ("tiền" read as "tiên", "TỔNG" as "TÔNG"). */
+const fold = (s: string) => s.normalize('NFD').replace(/\p{M}/gu, '').replace(/đ/g, 'd').replace(/Đ/g, 'D');
+const either = (...res: RegExp[]) => ({ test: (s: string) => { const f = fold(s); return res.some((r) => r.test(s) || (f !== s && r.test(f))); } });
 
 const SUBTOTAL_X = words(
   ['jumlah\\s+kecil', 'kabuuang\\s+halaga', 't[ạa]m\\s+t[íi]nh', 'th[àa]nh\\s+ti[ềe]n', 'c[ộo]ng\\s+ti[ềe]n\\s+h[àa]ng', 'ara\\s+toplam', 'подытог', 'промежуточный\\s+итог', 'сумма',
     'sous-?\\s?total', 'zwischensumme', 'summe\\s+artikel', 'base\\s+imponible', 'delsum', 'sum\\s+varer', 'mellemsum', 'delsumma', 'summa\\s+varor',
-    'välisumma', 'yhteensä\\s+tuotteet', 'jumla\\s+ndogo', 'المجموع\\s+الفرعي', 'المجموع'],
+    'välisumma', 'yhteensä\\s+tuotteet', 'jumla\\s+ndogo', 'المجموع\\s+الفرعي', 'المجموع(?!\\s+الكلي)'],
   ['小計', '小计', '소\\s?계', '공급가액', '^\\W*รวม(?:เงิน)?(?=\\s|\\d|$)', 'ยอดรวมย่อย']);
 const TOTAL_X = words(
   ['kabuuan', 'total\\s+due', 't[ổo]ng\\s+c[ộo]ng', 'thanh\\s+to[áa]n', 't[ổo]ng\\s+ti[ềe]n', 'toplam', 'genel\\s+toplam', '[öo]denecek(\\s+tutar)?', 'итого?', 'к\\s+оплате',
@@ -311,6 +313,8 @@ function findMerchant(lines: string[]) {
 
 /** Arabic-Indic and Persian digits (٣٤٫٥٠) as 0-9, with their decimal and thousands marks. */
 function normalizeDigits(s: string) {
+  // Right-to-left text comes back with invisible direction marks and Arabic words glued to amounts ("فتوش162.00").
+  s = s.replace(/[\u200e\u200f\u202a-\u202e\u2066-\u2069]/g, '').replace(/(\p{Script=Arabic})(?=\d)/gu, '$1 ').replace(/(\d)(?=\p{Script=Arabic})/gu, '$1 ');
   return s.replace(/[٠-٩]/g, (d) => String(d.charCodeAt(0) - 0x660)).replace(/[۰-۹]/g, (d) => String(d.charCodeAt(0) - 0x6f0)).replace(/٫/g, ',').replace(/٬/g, '.');
 }
 /** "1 234,50" (thousands split by a space, as in France, Scandinavia and Russia) as one number. Only a single space and
@@ -324,7 +328,8 @@ function joinSpaceGroups(l: string) {
 
 export function parseReceipt(text: string, cats: Category[]): Receipt {
   text = normalizeDigits(text);
-  const lines = text.split('\n').map((l) => joinSpaceGroups(l.trim())).filter(Boolean);
+  // OCR glues table lines to amounts ("ape==10,000", "~5,500"): split them off.
+  const lines = text.split('\n').map((l) => joinSpaceGroups(l.trim().replace(/([^\s\d])[=~]+(?=\d)/g, '$1 ').replace(/(^|\s)[=~]+(?=\d)/g, '$1'))).filter(Boolean);
   // Merchant: first line near the top that is mostly letters.
   const merchant = findMerchant(lines);
 
@@ -389,6 +394,11 @@ export function parseReceipt(text: string, cats: Category[]): Receipt {
   const amountOnly = (k: number) => (k < lines.length && priceAt(k) && !hasWords(priceAt(k)!.label) ? priceAt(k)!.value : 0);
   const subLine = subIdx >= 0 ? (priceAt(subIdx)?.value ?? readLine(lines[subIdx], decimalMode)?.total ?? amountOnly(subIdx + 1)) : 0;
   reconcile(items, subLine);
+  // A garbled "Sub Total" line ("Sth Forge 28,635") reads like a dish, but its amount is the sum of the dishes above it.
+  if (items.length >= 3) {
+    const k = items.length - 1, above = items.slice(0, k).reduce((a, i) => a + i.amount, 0);
+    if (Math.abs(items[k].amount - above) <= above * 0.01) items.pop();
+  }
   for (const it of items) it.name = it.name.slice(0, 60);
   const sum = items.reduce((a, i) => a + i.amount, 0);
   const subtotal = subLine || sum;

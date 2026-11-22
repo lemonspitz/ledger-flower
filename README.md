@@ -127,6 +127,44 @@ The desktop apps are unsigned. Windows SmartScreen will ask for confirmation
 xattr -cr "/Applications/Ledger Flower.app"
 ```
 
+## Receipt accuracy
+
+The scanner is Tesseract OCR plus hand-written rules (no cloud, no trained model). The rules are measured and tuned against receipts with known answers:
+
+**Real receipts – [CORD](https://huggingface.co/datasets/naver-clova-ix/cord-v2)** (1,000 Indonesian receipt photos with hand-checked contents by NAVER Clova, CC BY 4.0; not stored in this repo). Rules were tuned on the 800 training receipts and scored on the other 200, which were not looked at while tuning:
+
+| Held-out 200 receipts | Before tuning | Now |
+|---|---|---|
+| Text as printed: every item right | 75.5% | 84.0% |
+| Text as printed: total right | 86.0% | 95.9% |
+| Text as printed: subtotal right | 75.0% | 95.5% |
+| Text as printed: tax right | 85.9% | 94.1% |
+| Photo → OCR → rules: every item right | 42.3% | 45.0% |
+| Photo → OCR → rules: total right | 40.7% | 42.9% |
+
+On photos the OCR is the limit: many CORD pictures are small, creased or at an angle. A clear, flat, close photo reads far better than these numbers suggest.
+
+**Every app language – generated receipts.** There are no public sets of real, annotated receipts for most of the app's languages, so `bench/synth.ts` makes 500 per language that follow each country's conventions: local words for subtotal, tax, service and total, local money formats, tax added on top or already included, and four item layouts. "Bill adds up" means the bill the app fills in (items − discount + service + tax) equals what was paid.
+
+| | en | ms | tl | th | vi | ja | ko | zh-Hans | zh-Hant | ar | tr | ru | fr | de | es | pt | nb | da | sv | fi | sw |
+|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|
+| Text, 500 each | 100 | 99 | 100 | 99 | 100 | 100 | 100 | 99 | 88 | 99 | 100 | 100 | 100 | 99 | 99 | 100 | 100 | 100 | 100 | 99 | 95 |
+| Printed + OCR, 20 each | 100 | 100 | 75 | 60 | 95 | 45 | 55 | 55 | 60 | 0 | 80 | 70 | 100 | 95 | 100 | 90 | 90 | 60 | 100 | 100 | 90 |
+
+(% of receipts whose bill adds up.) Latin-script receipts read well. Japanese, Chinese, Korean, Thai and Russian work but miss more; Arabic receipts are not yet read reliably (the text reader mixes up right-to-left order and Arabic-Indic digits), so check those by hand. Generated receipts are cleaner than real ones, so treat these as an upper bound.
+
+Run them yourself:
+
+```bash
+npx tsx bench/cord.ts <cord-dir> --split heldout          # CORD, text only
+npx tsx bench/synth.ts                                     # 500 per language, text only
+npx vite --port 5199 &                                     # then the photo runs:
+node bench/ocr-run.cjs <cord-dir> ocr.json --split heldout && npx tsx bench/cord.ts <cord-dir> --split heldout --ocr ocr.json
+npx tsx bench/synth.ts --dump synth && node bench/synth-ocr.cjs synth synth-ocr.json --per 20 && npx tsx bench/synth.ts --ocr synth-ocr.json
+```
+
+`<cord-dir>` holds `index.json` and `img/<id>.png|jpg` + `img/<id>.json`, extracted from the dataset's parquet files.
+
 ## Releases
 
 Releases are built on GitHub's machines by `.github/workflows/release.yml`. **To publish a new version, bump `version` in `package.json` and push to `main`.** If that version has no release yet, the workflow runs the tests, builds the Android APK, the Windows installer and portable `.exe` and both Mac zips (ad-hoc signed), then creates the release and its tag `v<version>`. The notes list the commits since the previous release.
