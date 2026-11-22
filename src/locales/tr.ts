@@ -916,4 +916,14 @@ export default [
   "Önizleme",
   "Bazı satırlar {list} cinsinden. Tutarlar {cur} birimine çevrilmeden olduğu gibi eklenir.",
   {"one":"Kategorisi olmayan {n} işlem, mağaza adına veya notundaki kelimelere göre sınıflandırıldı.","other":"Kategorisi olmayan {n} işlem, mağaza adına veya notlarındaki kelimelere göre sınıflandırıldı."},
+  // Receipt reading models.
+  "Fiş okuma",
+  "İngilizce ve Latin harfleriyle yazılan diğer diller yerleşik olarak gelir. Başka bir alfabeyle basılmış fişleri okumak için o dilin metin okuyucusunu bir kez indirin; sonra çevrimdışı da çalışır.",
+  "diliniz için",
+  "İndirilemedi ({reason}). Bağlantınızı kontrol edip yeniden deneyin.",
+  "İndirildi",
+  "Kaldır",
+  "İndir",
+  "İndirdiğiniz her dil taramayı biraz yavaşlatır. Yalnızca dil dosyası indirilir; fiş fotoğrafları bu cihazdan asla çıkmaz.",
+  "{lang} fişleri okumak için metin okuyucusunu Ayarlar → Fiş okuma bölümünden indirin.",
 ];

@@ -916,4 +916,14 @@ export default [
   "Förhandsvisning",
   "Vissa rader är i {list}. Beloppen läggs till som de är, utan omräkning till {cur}.",
   {"one":"{n} utan kategori sorterades efter butiken eller ord i anteckningen.","other":"{n} utan kategori sorterades efter butiken eller ord i anteckningarna."},
+  // Receipt reading models.
+  "Läsa kvitton",
+  "Engelska och andra språk med latinska bokstäver är inbyggda. För att läsa kvitton i en annan skrift laddar du ner dess textläsare en gång; sedan fungerar den offline.",
+  "för ditt språk",
+  "Hämtningen misslyckades ({reason}). Kontrollera anslutningen och försök igen.",
+  "Nedladdad",
+  "Ta bort",
+  "Ladda ner",
+  "Varje nedladdat språk gör skanningen lite långsammare. Bara språkfilen laddas ner; kvittofoton lämnar aldrig den här enheten.",
+  "För att läsa kvitton på {lang}, ladda ner textläsaren under Inställningar → Läsa kvitton.",
 ];

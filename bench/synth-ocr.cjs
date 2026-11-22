@@ -10,6 +10,9 @@ const [dir, out] = process.argv.slice(2);
 const opt = (k, d) => { const i = process.argv.indexOf(k); return i >= 0 ? process.argv[i + 1] : d; };
 const per = Number(opt('--per', '10')), jobs = Number(opt('--jobs', '3')), only = opt('--lang', '');
 const url = opt('--url', 'http://localhost:5199/');
+// The model the app would have downloaded for each language (Settings → Receipt reading).
+const MODEL = { ja: 'jpn', 'zh-Hans': 'chi_sim', 'zh-Hant': 'chi_tra', ko: 'kor', th: 'tha', ar: 'ara', ru: 'rus', vi: 'vie' };
+const model = (lang) => (MODEL[lang] ? [{ code: MODEL[lang], b64: fs.readFileSync(`node_modules/@tesseract.js-data/${MODEL[lang]}/4.0.0_best_int/${MODEL[lang]}.traineddata.gz`).toString('base64') }] : []);
 
 (async () => {
   const done = fs.existsSync(out) ? JSON.parse(fs.readFileSync(out, 'utf8')) : {};
@@ -33,11 +36,14 @@ const url = opt('--url', 'http://localhost:5199/');
       await shot.setContent(`<body style="margin:0;background:#f4f1ea"><pre dir="${x.rtl ? 'auto' : 'ltr'}" style="margin:0;padding:18px 14px;font:15px/1.35 'DejaVu Sans Mono','WenQuanYi Zen Hei Mono','IPAGothic','Loma',monospace;color:#2a2a2a;white-space:pre">${x.text.replace(/&/g, '&amp;').replace(/</g, '&lt;')}</pre></body>`);
       const png = await shot.locator('pre').screenshot();
       try {
-        done[x.key] = await page.evaluate(async ({ b64, lang }) => {
+        done[x.key] = await page.evaluate(async ({ b64, models }) => {
           const { scanReceipt } = await import('/src/receipt.ts');
-          const blob = new Blob([Uint8Array.from(atob(b64), (c) => c.charCodeAt(0))], { type: 'image/png' });
-          return (await scanReceipt(blob, [], () => {}, lang)).text;
-        }, { b64: png.toString('base64'), lang: x.lang });
+          const { saveModel } = await import('/src/ocrModels.ts');
+          const bytes = (s) => Uint8Array.from(atob(s), (c) => c.charCodeAt(0));
+          for (const m of models) await saveModel(m.code, bytes(m.b64)); // as if downloaded in Settings
+          const blob = new Blob([bytes(b64)], { type: 'image/png' });
+          return (await scanReceipt(blob, [], () => {}, models.map((m) => m.code))).text;
+        }, { b64: png.toString('base64'), models: model(x.lang) });
       } catch (e) { console.error(x.key, e.message); }
       console.log(`${++n} ${x.key}`);
       if (n % 10 === 0) save();

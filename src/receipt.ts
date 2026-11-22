@@ -568,16 +568,14 @@ function cleanForOcr(src: HTMLCanvasElement): HTMLCanvasElement {
 }
 
 export type ScanStage = 'reading' | 'checking';
-/** Text-reader models for an app language: its own script plus English (receipts mix in Latin words and prices). */
-export function ocrLangs(appLang = 'en') {
-  const own: Record<string, string> = { ja: 'jpn', ko: 'kor', 'zh-Hans': 'chi_sim', 'zh-Hant': 'chi_tra', th: 'tha', ar: 'ara', ru: 'rus', vi: 'vie' };
-  return own[appLang] ? (appLang === 'vi' ? 'vie' : `${own[appLang]}+eng`) : 'eng';
-}
 /**
  * Reads a receipt photo. Progress is one bar that only moves forward: the first reading fills it to 70%, and each
  * extra pass (only when a reading doesn't add up) fills 70% of what is left, so it never jumps back to 0.
  */
-export async function scanReceipt(file: Blob, cats: Category[], onProgress: (p: number, stage: ScanStage) => void, appLang = 'en'): Promise<Receipt> {
+/**
+ * `models`: codes of the extra text-reader models downloaded in Settings (jpn, tha…), used alongside the built-in English one.
+ */
+export async function scanReceipt(file: Blob, cats: Category[], onProgress: (p: number, stage: ScanStage) => void, models: string[] = []): Promise<Receipt> {
   let passNo = 0, shown = 0;
   const report = (p: number) => {
     const from = 1 - 0.3 ** passNo, to = 1 - 0.3 ** (passNo + 1);
@@ -589,8 +587,10 @@ export async function scanReceipt(file: Blob, cats: Category[], onProgress: (p: 
   // If the engine or language files fail to load, tesseract.js waits forever; give up with a clear error instead.
   let timer: ReturnType<typeof setTimeout> | undefined;
   const timeout = new Promise<never>((_, rej) => { timer = setTimeout(() => rej(new Error('the text reader didn’t start')), 45000); });
-  const starting = createWorker(ocrLangs(appLang).split('+'), 1, {
-    workerPath: base + 'worker.min.js', corePath: base, langPath: base, workerBlobURL: false, gzip: false,
+  // English comes with the app; downloaded models are read from the device's cache ("ll-ocr", see ocrModels.ts),
+  // which the reader checks before fetching. It only reads that cache and never writes to it.
+  const starting = createWorker(['eng', ...models], 1, {
+    workerPath: base + 'worker.min.js', corePath: base, langPath: base, workerBlobURL: false, gzip: false, cachePath: 'll-ocr', cacheMethod: 'readOnly',
     logger: (m: { status: string; progress: number }) => { if (m.status === 'recognizing text') report(m.progress); },
     errorHandler: (e: unknown) => console.error('ocr worker', e),
   });

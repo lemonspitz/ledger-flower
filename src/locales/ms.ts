@@ -916,4 +916,14 @@ export default [
   "Pratonton",
   "Sesetengah baris dalam {list}. Jumlah ditambah seperti sedia ada, tanpa ditukar ke {cur}.",
   "{n} tanpa kategori disusun mengikut nama kedai atau perkataan dalam catatannya.",
+  // Receipt reading models.
+  "Membaca resit",
+  "Bahasa Inggeris dan bahasa lain yang menggunakan huruf Latin sudah tersedia. Untuk membaca resit dalam tulisan lain, muat turun pembaca teksnya sekali; selepas itu ia berfungsi di luar talian.",
+  "untuk bahasa anda",
+  "Muat turun gagal ({reason}). Semak sambungan dan cuba lagi.",
+  "Sudah dimuat turun",
+  "Buang",
+  "Muat turun",
+  "Setiap bahasa yang dimuat turun menjadikan imbasan sedikit perlahan. Hanya fail bahasa dimuat turun; foto resit tidak pernah keluar dari peranti ini.",
+  "Untuk membaca resit dalam {lang}, muat turun pembaca teksnya di Tetapan → Membaca resit.",
 ];

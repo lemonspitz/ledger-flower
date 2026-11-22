@@ -915,7 +915,16 @@ export const KEYS: string[] = [
  "New account “{name}”",
  "Preview",
  "Some rows are in {list}. Amounts are added as they are, without converting to {cur}.",
- "{n} without a category were sorted by the shop or words in their notes."
+ "{n} without a category were sorted by the shop or words in their notes.",
+ "Receipt reading",
+ "English and other languages written in Latin letters are built in. To read receipts printed in another script, download its text reader once; it then works offline.",
+ "for your language",
+ "Download failed ({reason}). Check your connection and try again.",
+ "Downloaded",
+ "Remove",
+ "Download",
+ "Each downloaded language makes scanning a little slower. Only the language file is downloaded; receipt photos never leave this device.",
+ "To read receipts printed in {lang}, download its text reader in Settings → Receipt reading."
 ];
 export const PLURAL_ONE: Record<string, string> = {
  "Sending your data… {n} parts left": "Sending your data… {n} part left",

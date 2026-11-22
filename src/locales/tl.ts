@@ -916,4 +916,14 @@ export default [
   "Silip",
   "May mga hilera sa {list}. Idinadagdag ang mga halaga nang ganoon, hindi kino-convert sa {cur}.",
   {"one":"{n} na walang kategorya ay inayos ayon sa tindahan o mga salita sa tala nito.","other":"{n} na walang kategorya ay inayos ayon sa tindahan o mga salita sa mga tala."},
+  // Receipt reading models.
+  "Pagbasa ng resibo",
+  "Kasama na ang English at iba pang wikang nakasulat sa letrang Latin. Para mabasa ang resibong nasa ibang sulat, i-download nang isang beses ang text reader nito; gagana na ito kahit offline.",
+  "para sa wika mo",
+  "Hindi na-download ({reason}). Tingnan ang koneksyon at subukang muli.",
+  "Na-download na",
+  "Alisin",
+  "I-download",
+  "Bawat na-download na wika ay nagpapabagal nang kaunti sa pag-scan. Ang file ng wika lang ang dina-download; hindi kailanman umaalis sa device na ito ang mga larawan ng resibo.",
+  "Para mabasa ang mga resibong nasa {lang}, i-download ang text reader nito sa Settings → Pagbasa ng resibo.",
 ];

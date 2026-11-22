@@ -8,6 +8,7 @@ import { NUM_FORMATS, curMonth, moneyFormatter, useModel, type Model } from './c
 import { buildWorkbook, csvName, toTidyCsv, xlsxName } from './export';
 import { createPortal } from 'react-dom';
 import { ImportDialog } from './ImportDialog';
+import { OcrCard } from './OcrCard';
 import { readFile, type Sheet } from './importer';
 import { demoData } from './demo';
 import { Dialogs, type Dialog } from './forms';
@@ -257,6 +258,7 @@ function SettingsView({ m, prefs, setPrefs, open }: { m: Model; prefs: LocalPref
       <SyncCard prefs={prefs} setPrefs={setPrefs} />
       <LockCard prefs={prefs} setPrefs={setPrefs} />
       <ReminderCard m={m} prefs={prefs} setPrefs={setPrefs} />
+      <OcrCard />
       <Card title={t('Preferences')}>
         <div className="form">
           <div className="row2">

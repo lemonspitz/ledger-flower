@@ -916,4 +916,14 @@ export default [
   "Esikatselu",
   "Osa riveistä on valuutassa {list}. Summat lisätään sellaisinaan, ilman muuntoa valuuttaan {cur}.",
   {"one":"{n} ilman luokkaa lajiteltiin kaupan tai muistiinpanon sanojen perusteella.","other":"{n} ilman luokkaa lajiteltiin kaupan tai muistiinpanojen sanojen perusteella."},
+  // Receipt reading models.
+  "Kuittien luku",
+  "Englanti ja muut latinalaisin kirjaimin kirjoitetut kielet ovat valmiina. Jos haluat lukea muulla kirjoitusjärjestelmällä painettuja kuitteja, lataa sen tekstinlukija kerran; sen jälkeen se toimii ilman verkkoa.",
+  "kielellesi",
+  "Lataus epäonnistui ({reason}). Tarkista yhteys ja yritä uudelleen.",
+  "Ladattu",
+  "Poista",
+  "Lataa",
+  "Jokainen ladattu kieli hidastaa skannausta hieman. Vain kielitiedosto ladataan; kuittikuvat eivät koskaan lähde tältä laitteelta.",
+  "Lukeaksesi kuitteja kielellä {lang} lataa tekstinlukija kohdassa Asetukset → Kuittien luku.",
 ];

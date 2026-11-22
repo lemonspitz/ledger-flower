@@ -916,4 +916,14 @@ export default [
   "Forhåndsvisning",
   "Noen rader er i {list}. Beløpene legges til som de er, uten omregning til {cur}.",
   {"one":"{n} uten kategori ble sortert etter butikken eller ord i notatet.","other":"{n} uten kategori ble sortert etter butikken eller ord i notatene."},
+  // Receipt reading models.
+  "Lesing av kvitteringer",
+  "Engelsk og andre språk med latinske bokstaver er innebygd. For å lese kvitteringer med en annen skrift, last ned tekstleseren én gang; deretter virker den uten nett.",
+  "for ditt språk",
+  "Nedlastingen mislyktes ({reason}). Sjekk tilkoblingen og prøv igjen.",
+  "Lastet ned",
+  "Fjern",
+  "Last ned",
+  "Hvert nedlastede språk gjør skanningen litt tregere. Bare språkfilen lastes ned; kvitteringsbilder forlater aldri denne enheten.",
+  "For å lese kvitteringer på {lang}, last ned tekstleseren i Innstillinger → Lesing av kvitteringer.",
 ];

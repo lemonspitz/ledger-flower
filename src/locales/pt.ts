@@ -916,4 +916,14 @@ export default [
   "Prévia",
   "Algumas linhas estão em {list}. Os valores são adicionados como estão, sem conversão para {cur}.",
   {"one":"{n} sem categoria foi classificada pela loja ou pelas palavras da nota.","other":"{n} sem categoria foram classificadas pela loja ou pelas palavras das notas."},
+  // Receipt reading models.
+  "Leitura de recibos",
+  "O inglês e outros idiomas escritos com letras latinas já vêm incluídos. Para ler recibos impressos em outra escrita, baixe uma vez o leitor de texto dela; depois funciona offline.",
+  "para o seu idioma",
+  "Falha no download ({reason}). Verifique a conexão e tente de novo.",
+  "Baixado",
+  "Remover",
+  "Baixar",
+  "Cada idioma baixado deixa a leitura um pouco mais lenta. Só o arquivo do idioma é baixado; as fotos dos recibos nunca saem deste aparelho.",
+  "Para ler recibos em {lang}, baixe o leitor de texto em Ajustes → Leitura de recibos.",
 ];

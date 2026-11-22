@@ -916,4 +916,14 @@ export default [
   "Pratinjau",
   "Beberapa baris dalam {list}. Jumlah ditambahkan apa adanya, tanpa dikonversi ke {cur}.",
   "{n} tanpa kategori diurutkan dari nama toko atau kata di catatannya.",
+  // Receipt reading models.
+  "Membaca struk",
+  "Bahasa Inggris dan bahasa lain yang memakai huruf Latin sudah tersedia. Untuk membaca struk dengan aksara lain, unduh pembaca teksnya sekali; setelah itu bisa dipakai offline.",
+  "untuk bahasa Anda",
+  "Gagal mengunduh ({reason}). Periksa koneksi lalu coba lagi.",
+  "Sudah diunduh",
+  "Hapus",
+  "Unduh",
+  "Setiap bahasa yang diunduh membuat pemindaian sedikit lebih lambat. Hanya file bahasa yang diunduh; foto struk tidak pernah keluar dari perangkat ini.",
+  "Untuk membaca struk berbahasa {lang}, unduh pembaca teksnya di Pengaturan → Membaca struk.",
 ];

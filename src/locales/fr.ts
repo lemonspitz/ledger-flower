@@ -916,4 +916,14 @@ export default [
   "Aperçu",
   "Certaines lignes sont en {list}. Les montants sont ajoutés tels quels, sans conversion en {cur}.",
   {"one":"{n} sans catégorie a été classée d’après le commerce ou les mots de sa note.","other":"{n} sans catégorie ont été classées d’après le commerce ou les mots de leurs notes."},
+  // Receipt reading models.
+  "Lecture des tickets",
+  "L’anglais et les autres langues écrites en alphabet latin sont intégrés. Pour lire des tickets imprimés dans une autre écriture, téléchargez une fois son module de lecture ; il fonctionne ensuite hors ligne.",
+  "pour votre langue",
+  "Échec du téléchargement ({reason}). Vérifiez votre connexion et réessayez.",
+  "Téléchargé",
+  "Supprimer",
+  "Télécharger",
+  "Chaque langue téléchargée ralentit un peu la lecture. Seul le fichier de langue est téléchargé ; les photos de tickets ne quittent jamais cet appareil.",
+  "Pour lire des tickets en {lang}, téléchargez son module de lecture dans Réglages → Lecture des tickets.",
 ];

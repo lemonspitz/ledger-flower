@@ -916,4 +916,14 @@ export default [
   "Xem trước",
   "Một số dòng tính bằng {list}. Số tiền được thêm nguyên như vậy, không quy đổi sang {cur}.",
   "{n} giao dịch chưa có danh mục đã được xếp theo tên cửa hàng hoặc từ trong ghi chú.",
+  // Receipt reading models.
+  "Đọc hóa đơn",
+  "Tiếng Anh và các ngôn ngữ viết bằng chữ Latinh đã có sẵn. Để đọc hóa đơn in bằng chữ viết khác, hãy tải trình đọc chữ của nó một lần; sau đó dùng được cả khi ngoại tuyến.",
+  "cho ngôn ngữ của bạn",
+  "Tải xuống không thành công ({reason}). Hãy kiểm tra kết nối rồi thử lại.",
+  "Đã tải xuống",
+  "Xóa",
+  "Tải xuống",
+  "Mỗi ngôn ngữ đã tải làm việc quét chậm hơn một chút. Chỉ tệp ngôn ngữ được tải về; ảnh hóa đơn không bao giờ rời khỏi thiết bị này.",
+  "Để đọc hóa đơn in bằng {lang}, hãy tải trình đọc chữ trong Cài đặt → Đọc hóa đơn.",
 ];

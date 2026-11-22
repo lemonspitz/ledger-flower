@@ -916,4 +916,14 @@ export default [
   "Vorschau",
   "Einige Zeilen sind in {list}. Die Beträge werden unverändert übernommen, ohne Umrechnung in {cur}.",
   {"one":"{n} ohne Kategorie wurde anhand des Geschäfts oder der Wörter in der Notiz eingeordnet.","other":"{n} ohne Kategorie wurden anhand des Geschäfts oder der Wörter in den Notizen eingeordnet."},
+  // Receipt reading models.
+  "Belege lesen",
+  "Englisch und andere Sprachen in lateinischer Schrift sind eingebaut. Um Belege in einer anderen Schrift zu lesen, laden Sie deren Texterkennung einmal herunter; danach funktioniert sie auch offline.",
+  "für Ihre Sprache",
+  "Download fehlgeschlagen ({reason}). Prüfen Sie die Verbindung und versuchen Sie es erneut.",
+  "Heruntergeladen",
+  "Entfernen",
+  "Herunterladen",
+  "Jede heruntergeladene Sprache macht das Scannen etwas langsamer. Nur die Sprachdatei wird heruntergeladen; Belegfotos verlassen dieses Gerät nie.",
+  "Um Belege auf {lang} zu lesen, laden Sie die Texterkennung unter Einstellungen → Belege lesen herunter.",
 ];

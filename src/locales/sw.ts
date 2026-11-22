@@ -916,4 +916,14 @@ export default [
   "Onyesho la awali",
   "Baadhi ya safu ziko kwa {list}. Kiasi kinaongezwa kama kilivyo, bila kubadilishwa kuwa {cur}.",
   {"one":"{n} usio na aina umepangwa kwa jina la duka au maneno ya maelezo yake.","other":"{n} isiyo na aina imepangwa kwa jina la duka au maneno ya maelezo yake."},
+  // Receipt reading models.
+  "Kusoma risiti",
+  "Kiingereza na lugha nyingine zinazoandikwa kwa herufi za Kilatini zimo tayari. Ili kusoma risiti zilizochapishwa kwa hati nyingine, pakua kisomaji chake cha maandishi mara moja; kisha kinafanya kazi bila mtandao.",
+  "kwa lugha yako",
+  "Upakuaji umeshindikana ({reason}). Angalia muunganisho kisha ujaribu tena.",
+  "Imepakuliwa",
+  "Ondoa",
+  "Pakua",
+  "Kila lugha iliyopakuliwa hufanya uchanganuzi kuwa wa polepole kidogo. Faili ya lugha pekee ndiyo inayopakuliwa; picha za risiti haziondoki kwenye kifaa hiki kamwe.",
+  "Ili kusoma risiti za {lang}, pakua kisomaji cha maandishi katika Mipangilio → Kusoma risiti.",
 ];

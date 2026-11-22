@@ -27,6 +27,8 @@ jobs:
       - run: npm ci
       - run: npm test
       - run: npm run build
+      # Optional text-reader models, downloaded by the app from Settings.
+      - run: node scripts/ocr-models.mjs dist/ocr/models
       - uses: actions/upload-pages-artifact@v3
         with:
           path: dist

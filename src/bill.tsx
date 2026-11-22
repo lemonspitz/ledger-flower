@@ -1,10 +1,11 @@
 // Bill calculator & splitter: type each menu item with its base price, the app adds service and tax,
 // and (optionally) splits the bill between friends. Opened from "New transaction", pre-filled after a scan.
-import { useMemo, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { Capacitor } from '@capacitor/core';
 import { Share } from '@capacitor/share';
 import { fmtInput, parseAmount, type Model } from './calc';
 import { scanReceipt, type Receipt } from './receipt';
+import { installedModels, modelForLang } from './ocrModels';
 import { computeBill, ratesOf, type BillItem } from './split';
 import { put, txId, type PayKind, type Tx } from './store';
 import { Field, Icon, Modal, Seg } from './ui';
@@ -45,6 +46,9 @@ export function BillSplit({ m, init, ctx, onBack, onSaved, onScanned }: { m: Mod
   const [printedTax, setPrintedTax] = useState<number | undefined>();
   const [date, setDate] = useState(init.date);
   const [receiptTotal, setReceiptTotal] = useState<number | undefined>();
+  // The app's language uses a script the built-in reader can't read, and its model isn't downloaded yet.
+  const [needModel, setNeedModel] = useState('');
+  useEffect(() => { const want = modelForLang(getLang()); if (want) void installedModels().then((have) => setNeedModel(have.includes(want.code) ? '' : want.name)); }, []);
   const [scan, setScan] = useState<{ busy?: boolean; progress?: number; stage?: 'reading' | 'checking'; error?: string; done?: string; text?: string }>({});
   const fileRef = useRef<HTMLInputElement>(null);
   const camRef = useRef<HTMLInputElement>(null);
@@ -95,7 +99,7 @@ export function BillSplit({ m, init, ctx, onBack, onSaved, onScanned }: { m: Mod
     if (!file) return;
     setScan({ busy: true, progress: 0 });
     try {
-      const r = await scanReceipt(file, m.categories, (p, stage) => setScan({ busy: true, progress: p, stage }), getLang());
+      const r = await scanReceipt(file, m.categories, (p, stage) => setScan({ busy: true, progress: p, stage }), await installedModels());
       if (!r.items.length) {
         setScan({ text: r.text, error: r.text.trim() ? t('No menu items could be picked out. Check the text below, try a flatter, closer photo, or type the items in.') : t('No text could be read. Try a sharper, well-lit photo with the receipt filling the frame.') });
         return;
@@ -171,6 +175,7 @@ export function BillSplit({ m, init, ctx, onBack, onSaved, onScanned }: { m: Mod
             <div className="btn-row tight">
               {MOBILE && <button type="button" className="btn small primary" onClick={() => camRef.current?.click()}><Icon name="camera" size={15} />{t('Scan receipt')}</button>}
               <button type="button" className={`btn small${MOBILE ? '' : ' primary'}`} onClick={() => fileRef.current?.click()}><Icon name="image" size={15} />{MOBILE ? t('From photos') : t('Scan receipt image')}</button>
+              {!scan.done && !scan.error && needModel && <small className="hint">{t('To read receipts printed in {lang}, download its text reader in Settings → Receipt reading.', { lang: needModel })}</small>}
               {!scan.done && !scan.error && <small className="hint">{t('Reads the menu items, quantities, prices, service and tax. Read on this device only.')}</small>}
             </div>
           )}

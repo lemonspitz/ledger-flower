@@ -916,4 +916,14 @@ export default [
   "Vista previa",
   "Algunas filas están en {list}. Los importes se añaden tal cual, sin convertir a {cur}.",
   {"one":"{n} sin categoría se clasificó por la tienda o las palabras de su nota.","other":"{n} sin categoría se clasificaron por la tienda o las palabras de sus notas."},
+  // Receipt reading models.
+  "Lectura de tickets",
+  "El inglés y otros idiomas escritos con letras latinas vienen incluidos. Para leer tickets impresos en otra escritura, descarga una vez su lector de texto; después funciona sin conexión.",
+  "para tu idioma",
+  "No se pudo descargar ({reason}). Revisa la conexión e inténtalo de nuevo.",
+  "Descargado",
+  "Quitar",
+  "Descargar",
+  "Cada idioma descargado hace el escaneo un poco más lento. Solo se descarga el archivo del idioma; las fotos de los tickets nunca salen de este dispositivo.",
+  "Para leer tickets en {lang}, descarga su lector de texto en Ajustes → Lectura de tickets.",
 ];
