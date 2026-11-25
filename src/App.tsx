@@ -135,6 +135,17 @@ export default function App() {
   useEffect(() => { if (sheet && hint) { setHint(false); try { localStorage.setItem('ll.pullHintSeen', '1'); } catch { /* storage unavailable */ } } }, [sheet, hint]);
   // Pull-up dock: how far (px) the menu is being dragged up from the dock, or null when not dragging.
   const [pull, setPull] = useState<number | null>(null);
+  const [peek, setPeek] = useState(false);
+  // Until the menu has been opened once, it peeks up briefly when the app starts (on a phone), so people see it is there.
+  useEffect(() => {
+    if (!hint || !window.matchMedia('(max-width: 860px)').matches || window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+    let n = 0;
+    try { n = Number(localStorage.getItem('ll.peeks') || 0); localStorage.setItem('ll.peeks', String(n + 1)); } catch { /* storage unavailable */ }
+    if (n >= 3) return;
+    setPeek(true);
+    const a = setTimeout(() => setPull(1), 1000), b = setTimeout(() => setPull(250), 1100), c = setTimeout(() => setPull(1), 2600), d = setTimeout(() => { setPull((p) => (p === 1 ? null : p)); setPeek(false); }, 3000);
+    return () => { clearTimeout(a); clearTimeout(b); clearTimeout(c); clearTimeout(d); };
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
   const suppressClick = useRef(false);
   const PULL_OPEN = 90;
   // Once a press starts on the dock, follow that finger anywhere on screen (a quick swipe leaves the dock immediately).
@@ -192,10 +203,13 @@ export default function App() {
         {nav().slice(0, 2).map(([id, label, icon]) => <button key={id} className={view === id ? 'on' : ''} onClick={() => go(id)}><Icon name={icon} />{label}</button>)}
         <button className="fab" onClick={() => setDialog({ k: 'tx' })} aria-label={t('Add transaction')}><Icon name="plus" size={26} /></button>
         {nav().slice(2, 4).map(([id, label, icon]) => <button key={id} className={view === id ? 'on' : ''} onClick={() => go(id)}><Icon name={icon} />{label}</button>)}
-        <button className="sr-only" onClick={() => setSheet(!sheet)} aria-expanded={sheet} aria-haspopup="menu">{t('All sections')}</button>
-        {hint && <span className="dock-hint" aria-hidden><Icon name="up" size={13} />{t('Drag up for more')}</span>}
+        {/* The way to the other sections (Goals, Accounts, Settings…): always visible; tap it, or drag it (or the bar) up. */}
+        <button className={`dock-tab${hint ? ' new' : ''}`} onClick={() => setSheet(!sheet)} aria-expanded={sheet} aria-haspopup="menu">
+          <Icon name={sheet ? 'chevdown' : 'chevup'} size={14} /><span>{t('More')}</span>
+        </button>
+        {hint && !peek && <span className="dock-hint" aria-hidden><Icon name="up" size={13} />{t('Drag up for more')}</span>}
       </nav>
-      {(sheet || pull !== null) && <MoreSheet key="menu" view={view} pull={sheet ? undefined : pull ?? 0} animateIn={pull === null && sheet}
+      {(sheet || pull !== null) && <MoreSheet key="menu" view={view} pull={sheet ? undefined : pull ?? 0} smooth={peek} animateIn={pull === null && sheet}
         onPick={(id) => { setSheet(false); setPull(null); go(id); }} onClose={() => { setSheet(false); setPull(null); }} />}
       {dialog && <Dialogs d={dialog} m={m} close={() => setDialog(null)} />}
     </div>
@@ -203,7 +217,7 @@ export default function App() {
   );
 }
 
-function MoreSheet({ view, onPick, onClose, pull, animateIn }: { view: string; onPick: (id: string) => void; onClose: () => void; pull?: number; animateIn: boolean }) {
+function MoreSheet({ view, onPick, onClose, pull, animateIn, smooth }: { view: string; onPick: (id: string) => void; onClose: () => void; pull?: number; animateIn: boolean; smooth?: boolean }) {
   const [closing, setClosing] = useState(false);
   const [slideIn] = useState(animateIn);
   const [drag, setDrag] = useState(0);
@@ -215,9 +229,9 @@ function MoreSheet({ view, onPick, onClose, pull, animateIn }: { view: string; o
     return () => window.removeEventListener('keydown', k);
   }, [close]);
   return (
-    <div className={`sheet-scrim${closing ? ' closing' : ''}${slideIn ? '' : ' no-anim'}`} onClick={close} style={pull !== undefined ? { background: `rgba(0,0,0,${Math.min(0.4, pull / 600)})` } : undefined}>
+    <div className={`sheet-scrim${closing ? ' closing' : ''}${slideIn ? '' : ' no-anim'}`} onClick={close} style={pull !== undefined ? { background: `rgba(0,0,0,${Math.min(0.4, pull / 600)})`, transition: smooth ? 'background 0.4s' : undefined } : undefined}>
       <div className="sheet" role="menu" aria-label={t('All sections')} onClick={(e) => e.stopPropagation()}
-        style={pull !== undefined ? { transform: `translateY(max(0px, calc(100% - ${pull + 70}px)))`, transition: pull === 0 ? undefined : 'none' } : drag ? { transform: `translateY(${drag}px)`, transition: 'none' } : undefined}
+        style={pull !== undefined ? { transform: `translateY(max(0px, calc(100% - ${pull + 70}px)))`, transition: pull === 0 || smooth ? 'transform 0.4s cubic-bezier(0.2, 0.8, 0.2, 1)' : 'none' } : drag ? { transform: `translateY(${drag}px)`, transition: 'none' } : undefined}
         onTouchStart={(e) => { startY.current = e.touches[0].clientY; }}
         onTouchMove={(e) => { if (startY.current !== null) setDrag(Math.max(0, e.touches[0].clientY - startY.current)); }}
         onTouchEnd={() => { if (drag > 70) close(); setDrag(0); startY.current = null; }}>

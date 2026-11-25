@@ -594,3 +594,20 @@ input, select, textarea { border-radius: 12px; }
 .ocr-err { color: var(--crit-ink) !important; }
 .ocr-on { display: inline-flex; align-items: center; gap: 6px; font-size: 13px; color: var(--good-ink); white-space: nowrap; }
 .ocr-on .btn { margin-left: 4px; color: var(--ink-2); }
+
+/* ── "More" tab on the phone dock: the visible way into the slide-up menu ── */
+.dock-tab { display: none; }
+@media (max-width: 860px) {
+  main { padding-bottom: calc(118px + env(safe-area-inset-bottom)); }
+  .tabs .dock-tab { position: absolute; left: 50%; top: -15px; transform: translateX(-50%); display: inline-flex; flex-direction: row; align-items: center; gap: 3px;
+    padding: 4px 12px 4px 9px; border-radius: 99px; font-size: 12px; font-weight: 650; color: var(--accent-ink); background: var(--solid);
+    border: 1px solid color-mix(in srgb, var(--accent) 35%, var(--line)); box-shadow: 0 3px 10px rgba(0, 0, 0, 0.12); z-index: 2; }
+  .tabs .dock-tab svg { margin-top: -1px; }
+  .tabs .dock-tab:active { transform: translateX(-50%) scale(0.96); }
+  /* Not opened yet: a gentle nudge upward. */
+  .tabs .dock-tab.new { animation: tab-nudge 2.4s ease-in-out infinite; background: var(--accent); color: var(--on-accent); border-color: transparent; }
+  .tabs .fab { margin-top: 10px; }
+  .dock-hint { top: -58px; }
+}
+@keyframes tab-nudge { 0%, 70%, 100% { transform: translateX(-50%); } 80% { transform: translate(-50%, -5px); } 90% { transform: translate(-50%, -1px); } }
+@media (prefers-reduced-motion: reduce) { .tabs .dock-tab.new { animation: none; } }
