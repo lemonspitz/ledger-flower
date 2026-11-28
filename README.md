@@ -10,9 +10,9 @@ Capacitor for Android and iPhone, Electron for desktop, and as an installable we
 
 ![Overview on desktop with the Iris theme](docs/screenshots/desktop-overview.png)
 
-| Overview | Budgets | About your flower |
-| :---: | :---: | :---: |
-| <img src="docs/screenshots/phone-overview.png" alt="Overview on a phone, Cherry Blossom theme" width="260"> | <img src="docs/screenshots/phone-budgets.png" alt="Budgets on a phone" width="260"> | <img src="docs/screenshots/phone-flower-info.png" alt="Field guide for the Moon Orchid theme" width="260"> |
+| Overview | Budgets | More menu | About your flower |
+| :---: | :---: | :---: | :---: |
+| <img src="docs/screenshots/phone-overview.png" alt="Overview on a phone, Cherry Blossom theme" width="200"> | <img src="docs/screenshots/phone-budgets.png" alt="Budgets on a phone" width="200"> | <img src="docs/screenshots/phone-more.png" alt="The More menu opened from the tab on the bottom bar, showing every section" width="200"> | <img src="docs/screenshots/phone-flower-info.png" alt="Field guide for the Moon Orchid theme" width="200"> |
 
 ![Insights in dark mode with the Sacred Lotus theme](docs/screenshots/desktop-insights-dark.png)
 
